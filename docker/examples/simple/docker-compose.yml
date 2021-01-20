@@ -34,7 +34,8 @@ version: "3"
 services:
 
   pygeoapi:
-    image: geopython/pygeoapi:latest
-
+    image: internetofwater/pygeoapi:geoconnex2
+    ports: 
+      - "5000:80"
     volumes:
       - ./my.config.yml:/pygeoapi/local.config.yml

@@ -32,7 +32,7 @@
 server:
     bind:
         host: 0.0.0.0
-        port: 80
+        port: 5000
     url: http://localhost:5000
     mimetype: application/json; charset=UTF-8
     encoding: utf-8
@@ -109,14 +109,13 @@ resources:
                 begin: 2000-10-30T18:24:39Z
                 end: 2007-10-30T08:57:29Z
                 trs: http://www.opengis.net/def/uom/ISO-8601/0/Gregorian
-        providers:
-            - type: feature
-              name: CSV
-              data: tests/data/obs.csv
-              id_field: id
-              geometry:
-                  x_field: long
-                  y_field: long
+        provider:
+            name: CSV
+            data: tests/data/obs.csv
+            id_field: id
+            geometry:
+                x_field: long
+                y_field: long
 
     lakes:
         type: collection
@@ -138,12 +137,11 @@ resources:
                 begin: 2011-11-11
                 end: null  # or empty
                 trs: http://www.opengis.net/def/uom/ISO-8601/0/Gregorian
-        providers:
-            - type: feature
-              name: GeoJSON
-              data: tests/data/ne_110m_lakes.geojson
-              id_field: id
-              uri_field: name_alt
+        provider:
+            name: GeoJSON
+            data: tests/data/ne_110m_lakes.geojson
+            id_field: id
+
     countries:
         type: collection
         title: Countries in the world
@@ -164,12 +162,11 @@ resources:
             temporal:
                 begin:
                 end: null  # or empty
-        providers:
-            - type: feature
-              name: SQLiteGPKG
-              data: tests/data/ne_110m_admin_0_countries.sqlite
-              id_field: ogc_fid
-              table: ne_110m_admin_0_countries
+        provider:
+            name: SQLiteGPKG
+            data: tests/data/ne_110m_admin_0_countries.sqlite
+            id_field: ogc_fid
+            table: ne_110m_admin_0_countries
 
     hello-world:
         type: process

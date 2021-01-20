@@ -175,31 +175,36 @@ def geojson2geojsonld(config, data, dataset, identifier=None):
     :returns: string of rendered JSON (GeoJSON-LD)
     """
     context = config['resources'][dataset].get('context', [])
-    data['id'] = (
-        '{}/collections/{}/items/{}' if identifier
-        else '{}/collections/{}/items'
-    ).format(
-        *[config['server']['url'], dataset, identifier]
-    )
-    if data.get('timeStamp', False):
-        data['https://schema.org/sdDatePublished'] = data.pop('timeStamp')
+    uri_field = config['resources'][dataset].get('provider', {}).get('uri_field', None)
+    id_field = config['resources'][dataset].get('provider', {}).get('id_field', None)
+    
+    _data = {**data}
+    _data.pop('links', None)
+
+    host = config['server']['url']
+
+    isCollection = identifier is None
+    url_base = '{}/collections/{}/items'.format(host, dataset)
+    fallback_url = '{}/{}'.format(url_base, identifier)
+
+    if isCollection:
+        for feature in _data['features']:
+            feature['properties']['id'] = feature['id']
+            if feature['geometry']['type'] == 'Point': continue
+            feature.pop('geometry')
+    else:
+        if _data['geometry']['type'] != 'Point':
+            _data.pop('geometry')
+        _data['properties']['id'] = _data['id']
+
+    if _data.get('timeStamp', False):
+        _data['https://schema.org/sdDatePublished'] = _data.pop('timeStamp')
     defaultVocabulary = "https://geojson.org/geojson-ld/geojson-context.jsonld"
+  
+    
     ldjsonData = {
         "@context": [defaultVocabulary, *(context or [])],
-        **data
+        **_data
     }
-    isCollection = identifier is None
-    if isCollection:
-        for i, feature in enumerate(data['features']):
-            featureId = feature.get(
-                'id', None
-            ) or feature.get('properties', {}).get('id', None)
-            if featureId is None:
-                continue
-            # Note: @id or https://schema.org/url or both or something else?
-            if is_url(str(featureId)):
-                feature['id'] = featureId
-            else:
-                feature['id'] = '{}/{}'.format(data['id'], featureId)
-
+    
     return json.dumps(ldjsonData)

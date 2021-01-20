@@ -1035,6 +1035,13 @@ class API:
 
         content['timeStamp'] = datetime.utcnow().strftime(
             '%Y-%m-%dT%H:%M:%S.%fZ')
+        
+        uri_field = self.config['resources'][dataset].get('provider', {}).get('uri_field', None)
+        _path = pathinfo or headers.environ['PATH_INFO']
+        base_path = '/'.join(map(lambda s: s.strip('/'), [
+            self.config['server']['url'], _path
+        ]))
+        content['features'] = list(map(lambda f: _feature_identifier(f, base_path, uri_field), content['features']))
 
         if format_ == 'html':  # render
             headers_['Content-Type'] = 'text/html'
@@ -1169,6 +1176,16 @@ class API:
             }
             LOGGER.error(exception)
             return headers_, 404, to_json(exception, self.pretty_print)
+        
+        uri_field = self.config['resources'][dataset].get('provider', {}).get('uri_field', None)
+        _path = pathinfo or headers.environ['PATH_INFO']
+        base_path = '/'.join(map(lambda s: s.strip('/'), [
+            self.config['server']['url'], _path
+        ]))
+        content = _feature_identifier(content, base_path, uri_field)
+
+        id_field = self.config['resources'][dataset].get('provider', {}).get('id_field')
+        short_id = content['properties'][id_field]
 
         content['links'] = [{
             'rel': 'self' if not format_ or format_ == 'json' else 'alternate',
@@ -2208,6 +2225,7 @@ tiles/{{{}}}/{{{}}}/{{{}}}/{{{}}}?f=mvt'
 
         return headers_, http_status, to_json(response, self.pretty_print)
 
+    
     def get_process_job_result(self, headers, args, process_id, job_id):
         """
         Get result of job (instance of a process)
@@ -2638,3 +2656,25 @@ def validate_datetime(resource_def, datetime_=None):
         raise ValueError(msg)
 
     return datetime_
+def _feature_identifier(feature, base_path, uri_field=None):
+    """
+    Determines the feature.id value for a GeoJSON feature, based preferentially
+    on the uri_field specified in configuration, and secondarily on the id_field
+    In either case, the ultimate ID is expected to be a fully-formed URI that
+    will not requrie further templating, except to add query parameters.
+
+    :param feature: GeoJSON feature, which is not mutated.
+    :param uri_field: optional property containing an identifying URI, such as a
+                      persistant identifier (PID)
+
+    :returns: dict, copy of input `feature` with a transformed `properties.id`
+    """
+    feature_id = str(feature['id']).strip('/')
+    base = base_path.strip('/')
+    if uri_field:
+        id = feature['properties'][uri_field]
+    elif base.endswith(feature_id) and is_url(base):
+        id = base
+    else:
+        id = '/'.join([base, feature_id])
+    return {**feature, 'id': id}
