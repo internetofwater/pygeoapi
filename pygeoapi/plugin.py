@@ -50,8 +50,9 @@ PLUGINS = {
         'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
         'MVT': 'pygeoapi.provider.mvt.MVTProvider',
         'TinyDBCatalogue': 'pygeoapi.provider.tinydb_.TinyDBCatalogueProvider',
-        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider',
-        'SPARQL': 'pygeoapi.provider.sparql.SPARQLProvider'
+        'SPARQL': 'pygeoapi.provider.sparql.SPARQLProvider',
+        'SensorThings': 'pygeoapi.provider.sensorthings.SensorThingsProvider',
+        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider'
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
