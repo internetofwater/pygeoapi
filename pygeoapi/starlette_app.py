@@ -220,8 +220,8 @@ async def get_collection_items_tiles(request: Request, name=None,
         request, name, tileMatrixSetId, tile_matrix, tileRow, tileCol))
 
 
-@app.route('/collections/{collection_id}/items')
-@app.route('/collections/{collection_id}/items/')
+@app.route('/collections/{collection_id}/items', methods=['GET', 'POST'])
+@app.route('/collections/{collection_id}/items/', methods=['GET', 'POST'])
 @app.route('/collections/{collection_id}/items/{item_id}')
 @app.route('/collections/{collection_id}/items/{item_id}/')
 async def collection_items(request: Request, collection_id=None, item_id=None):
@@ -239,8 +239,14 @@ async def collection_items(request: Request, collection_id=None, item_id=None):
     if 'item_id' in request.path_params:
         item_id = request.path_params['item_id']
     if item_id is None:
-        return get_response(api_.get_collection_items(
-            request, collection_id, pathinfo=request.scope['path']))
+        if request.method == 'GET':  # list items
+            return get_response(
+                api_.get_collection_items(
+                    request, collection_id))
+        elif request.method == 'POST':  # filter items
+            return get_response(
+                api_.post_collection_items(
+                    request, collection_id))
     else:
         return get_response(api_.get_collection_item(
             request, collection_id, item_id))
@@ -315,8 +321,7 @@ async def get_processes(request: Request, process_id=None):
     return get_response(api_.describe_processes(request, process_id))
 
 
-@app.route('/processes/{process_id}/jobs', methods=['GET', 'POST'])
-@app.route('/processes/{process_id}/jobs/', methods=['GET', 'POST'])
+@app.route('/processes/{process_id}/jobs')
 @app.route('/processes/{process_id}/jobs/{job_id}', methods=['GET', 'DELETE'])
 @app.route('/processes/{process_id}/jobs/{job_id}/', methods=['GET', 'DELETE'])
 async def get_process_jobs(request: Request, process_id=None, job_id=None):
@@ -336,16 +341,31 @@ async def get_process_jobs(request: Request, process_id=None, job_id=None):
         job_id = request.path_params['job_id']
 
     if job_id is None:  # list of submit job
-        if request.method == 'GET':
-            return get_response(api_.get_process_jobs(request, process_id))
-        elif request.method == 'POST':
-            return get_response(api_.execute_process(request, process_id))
+        return get_response(api_.get_process_jobs(request, process_id))
     else:  # get or delete job
         if request.method == 'DELETE':
             return get_response(api_.delete_process_job(process_id, job_id))
         else:  # Return status of a specific job
             return get_response(api_.get_process_jobs(
                 request, process_id, job_id))
+
+
+@app.route('/processes/{process_id}/execution', methods=['POST'])
+@app.route('/processes/{process_id}/execution/', methods=['POST'])
+async def execute_process_jobs(request: Request, process_id):
+    """
+    OGC API - Processes jobs endpoint
+
+    :param request: Starlette Request instance
+    :param process_id: process identifier
+
+    :returns: Starlette HTTP Response
+    """
+
+    if 'process_id' in request.path_params:
+        process_id = request.path_params['process_id']
+
+    return get_response(api_.execute_process(request, process_id))
 
 
 @app.route('/processes/{process_id}/jobs/{job_id}/results', methods=['GET'])

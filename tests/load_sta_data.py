@@ -1,11 +1,8 @@
-#!/bin/sh
 # =================================================================
 #
-# Authors: Just van den Broecke <justb4@gmail.com>>
-#          Jorge Samuel Mendes de Jesus <jorge.dejesus@geocat.net>
+# Authors: Benjamin Webb <benjamin.miller.webb@gmail.com>
 #
-# Copyright (c) 2019 Just van den Broecke
-# Copyright (c) 2019 Jorge Samuel Mendes de Jesus
+# Copyright (c) 2021 Benjamin Webb
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -30,23 +27,45 @@
 #
 # =================================================================
 
+import requests
+import sys
+import json
+import os.path
 
-echo "Starting script to add geojson"
-# move to the directory of this setup script
-cd "$(dirname "$0")"
+url = 'http://localhost:8080/FROST-Server/v1.1/Datastreams'
+data_url = 'https://raw.githubusercontent.com/webb-ben/data/main/'
 
-# for some reason even when port 9200 is open Elasticsearch is unable to be accessed as authentication fails
-# a few seconds later it works
-# incresing to 50s for wait in a slow system /_cluster/health?wait_for_status=yellow&timeout=50s
-until $(curl -sSf -XGET --insecure 'http://localhost:9200/_cluster/health?wait_for_status=yellow' > /dev/null); do
-    printf 'No status yellow from ES, trying again in 10 seconds \n'
-    sleep 10
-done
-echo "Elasticsearch seems to be working - Adding ne_110m_populated_places_simple.geojson to ES"
 
-python3 /load_es_data.py /usr/share/elasticsearch/data/ne_110m_populated_places_simple.geojson geonameid
+def main(path_):
+    filename = os.path.basename(path_)
+    r = requests.get(f'{data_url}{filename}')
+    data = r.json().get('value')
+    for v in data:
+        clean(v)
+        requests.post(url, json.dumps(v))
+    print(f"Added {len(requests.get(url).json()['value'])} entities")
 
-echo "Seems that data was loaded"
 
-# create a new index with the settings in es_index_config.json
-#curl -v --insecure --user elastic:changeme -XPUT '0.0.0.0:9200/test?pretty' -H 'Content-Type: application/json' -d @es_index_config.json
+def clean(dirty_dict):
+    if isinstance(dirty_dict, dict):
+        keys = []
+        for (k, v) in dirty_dict.items():
+            if '@' in k and k != '@iot.id':
+                keys.append(k)
+            elif isinstance(v, dict):
+                clean(v)
+            elif isinstance(v, list):
+                for _v in v:
+                    if isinstance(_v, dict):
+                        clean(_v)
+
+        for k in keys:
+            dirty_dict.pop(k)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print('Usage: {} <path/to/data.geojson>'.format(sys.argv[0]))
+        sys.exit(1)
+
+    main(sys.argv[1])
