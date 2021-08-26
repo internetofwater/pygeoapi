@@ -1109,7 +1109,11 @@ class API:
             'type': 'object',
             'title': l10n.translate(
                 self.config['resources'][dataset]['title'], request.locale),
-            'properties': {},
+            'properties': {
+                'geometry': {
+                    '$ref': 'https://geojson.org/schema/Geometry.json'
+                }
+            },
             '$schema': 'http://json-schema.org/draft/2019-09/schema',
             '$id': '{}/collections/{}/queryables'.format(
                 self.config['server']['url'], dataset)
@@ -1442,11 +1446,12 @@ class API:
             content['collections_path'] = '/'.join(path_info.split('/')[:-2])
             content['startindex'] = startindex
 
+            content['id_field'] = p.id_field
             if p.uri_field is not None:
                 content['uri_field'] = p.uri_field
             if p.title_field is not None:
                 content['title_field'] = p.title_field
-            content['id_field'] = p.title_field
+                content['id_field'] = p.title_field
 
             content = render_j2_template(self.config,
                                          'collections/items/index.html',
@@ -1828,16 +1833,24 @@ class API:
                                     request.locale),
             'href': '{}/collections/{}'.format(
                 self.config['server']['url'], dataset)
-        }, {
-            'rel': 'prev',
-            'type': 'application/geo+json',
-            'href': uri
-            }, {
-            'rel': 'next',
-            'type': 'application/geo+json',
-            'href': uri
-            }
-        ]
+        }]
+
+        if 'prev' in content:
+            content['links'].append({
+                'rel': 'prev',
+                'type': FORMAT_TYPES[request.format],
+                'href': '{}/collections/{}/items/{}?f={}'.format(
+                    self.config['server']['url'], dataset,
+                    content['prev'], request.format)
+            })
+        if 'next' in content:
+            content['links'].append({
+                'rel': 'next',
+                'type': FORMAT_TYPES[request.format],
+                'href': '{}/collections/{}/items/{}?f={}'.format(
+                    self.config['server']['url'], dataset,
+                    content['next'], request.format)
+            })
 
         # Set response language to requested provider locale
         # (if it supports language) and/or otherwise the requested pygeoapi
@@ -2672,15 +2685,12 @@ class API:
         if status == JobStatus.failed:
             response = outputs
 
-        if data.get('response', 'document') == 'raw':
+        if data.get('response', 'raw') == 'raw':
             headers['Content-Type'] = mime_type
-            if F_JSON in mime_type:
-                response = to_json(outputs)
-            else:
-                response = outputs
+            response = outputs
 
         elif status != JobStatus.failed and not is_async:
-            response['outputs'] = outputs
+            response['outputs'] = [outputs]
 
         if is_async:
             http_status = 201
