@@ -150,7 +150,7 @@ class RiverRunnerProcessor(BaseProcessor):
             value = self.p.query(bbox=bbox)
             i = i + 1
 
-        LOGGER.debug(f'fetching downstream features')
+        LOGGER.debug('fetching downstream features')
         mh = self._compare(value, 'hydroseq', min)
         out, trim = [], []
         for i in (mh[P]['levelpathi'],
