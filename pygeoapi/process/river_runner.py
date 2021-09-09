@@ -36,12 +36,12 @@ from pygeoapi.process.base import BaseProcessor, ProcessorExecuteError
 
 
 LOGGER = logging.getLogger(__name__)
-CONFIG = ''
+CONFIG_ = ''
 
 with open(os.getenv('PYGEOAPI_CONFIG'), encoding='utf8') as fh:
-    CONFIG = yaml_load(fh)
+    CONFIG_ = yaml_load(fh)
 
-PROVIDER_DEF = CONFIG['resources']['merit']['providers'][0]
+PROVIDER_DEF = CONFIG_['resources']['merit']['providers'][0]
 P = 'properties'
 #: Process metadata and description
 PROCESS_METADATA = {
@@ -135,28 +135,42 @@ class RiverRunnerProcessor(BaseProcessor):
         if len(data.get('bbox', [])) != 4 and \
            not data.get('lat', '') and \
            not data.get('long', ''):
-            raise ProcessorExecuteError('Cannot process without any input')
+            raise ProcessorExecuteError(f'Invalid input: { {{data.items()}} }')
 
         if data.get('bbox', []):
             bbox = data['bbox']
         else:
-            bbox = (data['lat'], data['long'], data['lat'], data['long'])
+            bbox = self._expand_bbox((data['long'], data['lat'])*2)
 
         value = self.p.query(bbox=bbox)
-        mh = self._compare(value, 'hydroseq', min)
+        i = 1
+        while len(value['features']) < 1:
+            LOGGER.debug(f'No features in bbox {bbox}, expanding')
+            bbox = self._expand_bbox(bbox, e=0.125*i)
+            value = self.p.query(bbox=bbox)
+            i = i + 1
 
-        out = []
-        trim = []
+        LOGGER.debug(f'fetching downstream features')
+        mh = self._compare(value, 'hydroseq', min)
+        out, trim = [], []
         for i in (mh[P]['levelpathi'],
                   *mh[P]['down_levelpaths'].split(',')):
+            try:
+                i = int(float(i))
+            except ValueError:
+                LOGGER.error(f'No Downstem Rivers found {i}')
+                continue
 
-            down = self.p.query(properties=[('levelpathi', int(i)), ])
+            down = self.p.query(
+                properties=[('levelpathi', i), ], limit=2000
+                )
+
             out.extend(down['features'])
             m = self._compare(down, 'hydroseq', min)
             trim.append((m[P]['dnlevelpat'], m[P]['dnhydroseq']))
 
+        LOGGER.debug('keeping only mainstem flowpath')
         trim.append((mh[P]['levelpathi'], mh[P]['hydroseq']))
-
         outm = []
         for seg in out:
             for i in trim:
@@ -177,6 +191,10 @@ class RiverRunnerProcessor(BaseProcessor):
             if dir(f[P][prop], val[P][prop]) != val[P][prop]:
                 val = f
         return val
+
+    def _expand_bbox(self, bbox, e=0.125):
+        return [b + e if i < 2 else b - e
+                for (i, b) in enumerate(bbox)]
 
     def __repr__(self):
         return '<RiverRunnerProcessor> {}'.format(self.name)
