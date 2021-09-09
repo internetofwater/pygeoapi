@@ -131,7 +131,6 @@ class RiverRunnerProcessor(BaseProcessor):
 
     def execute(self, data):
         mimetype = 'application/json'
-        LOGGER.debug(data)
         if len(data.get('bbox', [])) != 4 and \
            not data.get('lat', '') and \
            not data.get('lng', ''):
@@ -144,8 +143,7 @@ class RiverRunnerProcessor(BaseProcessor):
 
         value = self.p.query(bbox=bbox)
         i = 1
-        LOGGER.debug(value)
-        while len(value['features']) < 1:
+        while len(value['features']) < 1 and i < 10:
             LOGGER.debug(f'No features in bbox {bbox}, expanding')
             bbox = self._expand_bbox(bbox, e=0.125*i)
             value = self.p.query(bbox=bbox)
