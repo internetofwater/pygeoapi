@@ -24,7 +24,7 @@
 {% block extrafoot %}
 <script>
 var loading = false;
-var map = L.map('river-runner-map').setView([0, -90], 1);
+var map = L.map('river-runner-map', {maxZoom: 8}).setView([30, 0], 2);
 map.addLayer(new L.TileLayer(
     '{{ config['server']['map']['url'] }}', {
         maxZoom: 18,
@@ -63,7 +63,7 @@ function onMapClick(e) {
                 var items = new L.GeoJSON(geojson_data, {
                     onEachFeature: function (feature, layer) {
                         var url = "/collections/merit/items/" + feature.id + '?f=html';
-                        var html = '<span><a href="' + url + '">' + feature.properties.nameID + '</a></span>';
+                        var html = '<span><a href="' + url + '">' + feature.properties.nameid + '</a></span>';
                         layer.bindPopup(html);
                     }
                 });
