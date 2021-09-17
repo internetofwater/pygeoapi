@@ -1,3 +1,7 @@
+name: pygeoapi-river-runner build
+
+on: [ push ]
+
 jobs:
   docker:
     runs-on: ubuntu-latest
