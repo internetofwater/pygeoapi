@@ -63,6 +63,28 @@ PROCESS_METADATA = {
         'hreflang': 'en-US'
     }],
     'inputs': {
+        'sorted': {
+            'title': 'Sorted',
+            'description': 'Sort features, default: unsorted',
+            'schema': {
+                'type': 'string',
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+            'keywords': ['sort']
+        },
+        'sortby': {
+            'title': 'Sorted',
+            'description': 'Property to sort by, default: hydroseq',
+            'schema': {
+                'type': 'string',
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+            'keywords': ['downstream', 'upstream', 'unset']
+        },
         'bbox': {
             'title': 'Boundary Box',
             'description': 'A set of four coordinates',
@@ -120,7 +142,8 @@ PROCESS_METADATA = {
     },
     'example': {
         'inputs': {
-            'bbox': [-86.2, 39.7, -86.15, 39.75]
+            'bbox': [-86.2, 39.7, -86.15, 39.75],
+            'sorted': 'downstream'
         }
     }
 }
@@ -144,6 +167,7 @@ class RiverRunnerProcessor(BaseProcessor):
         outputs = {
                 'id': 'echo',
                 'code': 'success',
+                'sorted': 'unset',
                 'value': {
                     'type': 'FeatureCollection',
                     'features': []
@@ -168,16 +192,24 @@ class RiverRunnerProcessor(BaseProcessor):
         bbox = bbox * 2 if len(bbox) == 2 else bbox
         bbox = self._expand_bbox(bbox)
 
-        p = load_plugin('provider', PROVIDER_DEF)
-        value = p.query(bbox=bbox)
-        if len(value['features']) < 1:
-            LOGGER.debug(f'No features in bbox {bbox}, expanding')
-            bbox = self._expand_bbox(bbox, e=2)
-            value = p.query(bbox=bbox)
+        order = data.get('sorted', [])
+        if order and order not in ['unsorted', 'unset']:
+            keys = {'downstream': '-', 'upstream': '+'}
+            sortprop = data.get('sortby', 'hydroseq')
+            order = [{'property': sortprop, 'order': keys[order]}]
 
-            if len(value['features']) < 1:
-                LOGGER.debug('No features found')
-                return mimetype, outputs
+        p = load_plugin('provider', PROVIDER_DEF)
+        value = p.query(bbox=bbox, sortby=order)
+        i = 1
+        while len(value['features']) < 1 and i < 3:
+            LOGGER.debug(f'No features in bbox {bbox}, expanding')
+            bbox = self._expand_bbox(bbox, e=i)
+            value = p.query(bbox=bbox, sortby=order)
+            i += 1
+
+        if len(value['features']) < 1:
+            LOGGER.debug('No features found')
+            return mimetype, outputs
 
         LOGGER.debug('fetching downstream features')
         mh = self._compare(value, 'hydroseq', min)
@@ -192,6 +224,7 @@ class RiverRunnerProcessor(BaseProcessor):
 
         d = p.query(
                 properties=[('levelpathi', i) for i in levelpaths],
+                sortby=order,
                 limit=100000, comp='OR'
                 )
 
@@ -228,8 +261,13 @@ class RiverRunnerProcessor(BaseProcessor):
         return val
 
     def _expand_bbox(self, bbox, e=0.25):
-        return [float(b) + e if i < 2 else float(b) - e
+        def bound(coords, b, dir):
+            return dir(map(lambda c: (c + b) % (b * 2) - b, coords))
+
+        bbox = [float(b) + e if i < 2 else float(b) - e
                 for (i, b) in enumerate(bbox)]
+        return [bound(bbox[::2], 180, min), bound(bbox[1::2], 90, min),
+                bound(bbox[::2], 180, max), bound(bbox[1::2], 90, max)]
 
     def __repr__(self):
         return '<RiverRunnerProcessor> {}'.format(self.name)
