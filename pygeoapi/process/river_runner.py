@@ -29,6 +29,7 @@
 
 import os
 import logging
+from shapely.geometry.multilinestring import MultiLineString
 
 from pygeoapi.util import yaml_load
 from pygeoapi.plugin import load_plugin
@@ -37,105 +38,155 @@ from pygeoapi.process.base import BaseProcessor, ProcessorExecuteError
 
 LOGGER = logging.getLogger(__name__)
 CONFIG_ = ''
+P = 'properties'
 
 with open(os.getenv('PYGEOAPI_CONFIG'), encoding='utf8') as fh:
     CONFIG_ = yaml_load(fh)
 
 PROVIDER_DEF = CONFIG_['resources']['merit']['providers'][0]
-P = 'properties'
-#: Process metadata and description
-PROCESS_METADATA = {
+PROCESS_DEF = CONFIG_['resources']['river-runner']
+PROCESS_DEF.update({
     'version': '0.1.0',
     'id': 'river-runner',
-    'title': {
-        'en': 'River Runner'
-    },
-    'description': {
-        'en': 'A simple process that takes a lat/lng or bbox as input, '
-              'and returns the largest flowpath.'
-    },
-    'keywords': ['river runner', 'rivers'],
-    'links': [{
-        'type': 'text/html',
-        'rel': 'canonical',
-        'title': 'information',
-        'href': 'https://example.org/process',
-        'hreflang': 'en-US'
-    }],
     'inputs': {
-        'sorted': {
-            'title': 'Sorted',
-            'description': 'Sort features, default: unsorted',
-            'schema': {
-                'type': 'string',
-            },
-            'minOccurs': 0,
-            'maxOccurs': 1,
-            'metadata': None,  # TODO how to use?
-            'keywords': ['sort']
-        },
-        'sortby': {
-            'title': 'Sorted',
-            'description': 'Property to sort by, default: hydroseq',
-            'schema': {
-                'type': 'string',
-            },
-            'minOccurs': 0,
-            'maxOccurs': 1,
-            'metadata': None,  # TODO how to use?
-            'keywords': ['downstream', 'upstream', 'unset']
-        },
         'bbox': {
-            'title': 'Boundary Box',
-            'description': 'A set of four coordinates',
+            'title': {
+                'en': 'Bounding Box'
+            },
+            'description': {
+                'en': 'Boundary box to begin a river runner query'
+            },
+            'keywords': {
+                'en': ['bounding', 'box', 'coordinates']
+            },
             'schema': {
                 'type': 'object',
+                'default': ['minLng', 'minLat', 'maxLng', 'maxLat']
             },
             'minOccurs': 0,
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
-            'keywords': ['coordinates', 'geography']
-        },
-        'latlng': {
-            'title': 'Latitude & Longitude',
-            'description': 'A set of two coordinates',
-            'schema': {
-                'type': 'object',
-            },
-            'minOccurs': 0,
-            'maxOccurs': 1,
-            'metadata': None,  # TODO how to use?
-            'keywords': ['coordinates', 'latitude', 'longitude']
         },
         'lat': {
-            'title': 'Latitude',
-            'description': 'Latitude of a point',
+            'title': {
+                'en': 'Latitude'
+            },
+            'description': {
+                'en': 'Latitude coordinate of a point'
+            },
+            'keywords': {
+                'en': ['latitude', 'eastwest', 'coordinate']
+            },
             'schema': {
                 'type': 'number',
+                'default': None
             },
             'minOccurs': 0,
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
-            'keywords': ['coordinates', 'latitude']
         },
         'lng': {
-            'title': 'Longitude',
-            'description': 'Longitude of a point',
+            'title': {
+                'en': 'Longitude'
+            },
+            'description': {
+                'en': 'Longitude coordinate of a point'
+            },
+            'keywords': {
+                'en': ['longitude', 'northsouth', 'coordinate']
+            },
             'schema': {
                 'type': 'number',
+                'default': None
             },
             'minOccurs': 0,
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
-            'keywords': ['coordinates', 'longitude']
+        },
+        'latlng': {
+            'title': {
+                'en': 'Latitude and Longitude'
+            },
+            'description': {
+                'en': 'Lat and Lng coordinates in order [lng,lat]'
+            },
+            'keywords': {
+                'en': ['latitude', 'longitude', 'coordinates']
+            },
+            'schema': {
+                'type': 'object',
+                'default': ['lng', 'lat']
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+        },
+        'sorted': {
+            'title': {
+                'en': 'Sorted'
+            },
+            'description': {
+                'en': 'Sort features by flow direction'
+            },
+            'keywords': {
+                'en': ['downstream', 'upstream', 'unset']
+            },
+            'schema': {
+                'type': 'string',
+                'default': 'downstream'
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+        },
+        'sortby': {
+            'title': {
+                'en': 'Sort By'
+            },
+            'description': {
+                'en': 'Property by which to sort features'
+            },
+            'keywords': {
+                'en': ['sort', 'comid', 'hydroseq']
+            },
+            'schema': {
+                'type': 'string',
+                'default': 'hydroseq'
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+        },
+        'groupby': {
+            'title': {
+                'en': 'Group By'
+            },
+            'description': {
+                'en': 'Property by which to group features'
+            },
+            'keywords': {
+                'en': ['group', 'nameid', 'streamlev']
+            },
+            'schema': {
+                'type': 'string',
+                'default': None
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
         }
     },
     'outputs': {
-        'echo': {
-            'title': 'Feature Collection',
-            'description': 'A geoJSON Feature Collection of River Runner',
+        'path': {
+            'title': {
+                'en': 'FeatureCollection'
+            },
+            'description': {
+                'en': 'A geoJSON FeatureCollection of the '\
+                      'path generated by the river runner process'
+            },
             'schema': {
-                'type': 'Object',
+                'type': 'object',
                 'contentMediaType': 'application/json'
             }
         }
@@ -146,7 +197,7 @@ PROCESS_METADATA = {
             'sorted': 'downstream'
         }
     }
-}
+})
 
 
 class RiverRunnerProcessor(BaseProcessor):
@@ -160,14 +211,20 @@ class RiverRunnerProcessor(BaseProcessor):
 
         :returns: pygeoapi.process.river_runner.RiverRunnerProcessor
         """
-        super().__init__(processor_def, PROCESS_METADATA)
+        super().__init__(processor_def, PROCESS_DEF)
 
     def execute(self, data):
+        """
+        Execute River Runner Process
+
+        :param data: processor arguments
+
+        :returns: 'application/json', outputs
+        """
         mimetype = 'application/json'
         outputs = {
-                'id': 'echo',
+                'id': 'path',
                 'code': 'success',
-                'sorted': 'unset',
                 'value': {
                     'type': 'FeatureCollection',
                     'features': []
@@ -178,54 +235,29 @@ class RiverRunnerProcessor(BaseProcessor):
            (not data.get('lat') and not data.get('lng')):
             raise ProcessorExecuteError(f'Invalid input: { {{data.items()}} }')
 
-        for k, v in data.items():
-            if isinstance(v, str):
-                data[k] = ','.join(v.split(',')).strip('()[]')
-                if k in ['latlng', 'bbox']:
-                    data[k] = data[k].split(',')
-
-        if data.get('bbox', data.get('latlng')):
-            bbox = data.get('bbox', data.get('latlng'))
-        else:
-            bbox = (data.get('lng'), data.get('lat'))
-
-        bbox = bbox * 2 if len(bbox) == 2 else bbox
-        bbox = self._expand_bbox(bbox)
-
-        order = data.get('sorted', [])
-        if order and order not in ['unsorted', 'unset']:
-            keys = {'downstream': '-', 'upstream': '+'}
-            sortprop = data.get('sortby', 'hydroseq')
-            order = [{'property': sortprop, 'order': keys[order]}]
+        bbox = self._make_bbox(data)
+        order = self._make_order(data)
+        groupby = data.get('groupby', '')
 
         p = load_plugin('provider', PROVIDER_DEF)
         value = p.query(bbox=bbox, sortby=order)
-        i = 1
-        while len(value['features']) < 1 and i < 3:
-            LOGGER.debug(f'No features in bbox {bbox}, expanding')
-            bbox = self._expand_bbox(bbox, e=i)
-            value = p.query(bbox=bbox, sortby=order)
-            i += 1
 
         if len(value['features']) < 1:
-            LOGGER.debug('No features found')
-            return mimetype, outputs
+            LOGGER.debug(f'No features in bbox {bbox}, expanding')
+            bbox = self._expand_bbox(bbox, e=1)
+            value = p.query(bbox=bbox, sortby=order)
+
+            if len(value['features']) < 1:
+                LOGGER.debug('No features found')
+                return mimetype, outputs
 
         LOGGER.debug('fetching downstream features')
         mh = self._compare(value, 'hydroseq', min)
-        levelpaths = []
-        for i in (mh[P]['levelpathi'],
-                  *mh[P]['down_levelpaths'].split(',')):
-            try:
-                i = int(float(i))
-                levelpaths.append(str(i))
-            except ValueError:
-                LOGGER.debug(f'No Downstem Rivers found {i}')
+        levelpaths = self._levelpaths(mh)
 
         d = p.query(
                 properties=[('levelpathi', i) for i in levelpaths],
-                sortby=order,
-                limit=100000, comp='OR'
+                sortby=order, limit=10000, comp='OR'
                 )
 
         mins = {level: {} for level in levelpaths}
@@ -238,7 +270,7 @@ class RiverRunnerProcessor(BaseProcessor):
                 mins[key] = f
 
         trim = [(mh[P]['levelpathi'], mh[P]['hydroseq'])]
-        for k, v in mins.items():
+        for v in mins.values():
             trim.append((v[P]['dnlevelpat'], v[P]['dnhydroseq']))
 
         LOGGER.debug('keeping only mainstem flowpath')
@@ -249,9 +281,45 @@ class RiverRunnerProcessor(BaseProcessor):
                    f[P]['hydroseq'] <= t[1]:
                     outm.append(f)
 
-        value.update({'features': outm})
+        if groupby in p.get_fields():
+            outm = self._group_by(outm, groupby)
+
+        value['features'] = outm
         outputs.update({'value': value})
         return mimetype, outputs
+
+    def _make_bbox(self, data):
+        for k, v in data.items():
+            if isinstance(v, str):
+                data[k] = ','.join(v.split(',')).strip('()[]')
+                if k in ['latlng', 'bbox']:
+                    data[k] = data[k].split(',')
+
+        if data.get('bbox', data.get('latlng')):
+            bbox = data.get('bbox', data.get('latlng'))
+        else:
+            bbox = (data.get('lng'), data.get('lat'))
+
+        bbox = bbox * 2 if len(bbox) == 2 else bbox
+        return self._expand_bbox(bbox)
+
+    def _make_order(self, data):
+        order = data.get('sorted', [])
+        if order and order not in ['unsorted', 'unset']:
+            keys = {'downstream': '-', 'upstream': '+'}
+            sortprop = data.get('sortby', 'hydroseq')
+            order = [{'property': sortprop, 'order': keys[order]}]
+        return order
+
+    def _levelpaths(self, mh):
+        levelpaths = []
+        for i in (mh[P]['levelpathi'],
+                  *mh[P]['down_levelpaths'].split(',')):
+            try:
+                levelpaths.append(str(int(float(i))))
+            except ValueError:
+                LOGGER.debug(f'No Downstem Rivers found {i}')
+        return levelpaths
 
     def _compare(self, fc, prop, dir):
         val = fc['features'][0]
@@ -268,6 +336,47 @@ class RiverRunnerProcessor(BaseProcessor):
                 for (i, b) in enumerate(bbox)]
         return [bound(bbox[::2], 180, min), bound(bbox[1::2], 90, min),
                 bound(bbox[::2], 180, max), bound(bbox[1::2], 90, max)]
+
+    def _group_by(self, features, groupby):
+
+        out_features, order = [], []
+        groups = {}
+        counter = 0
+        for (i, f) in enumerate(features):
+            name = f'{f[P][groupby]}_'
+            if name in groups.keys() and \
+               f[P][groupby] != features[i-1][P][groupby]:
+                name = f'{f[P][groupby]}_{counter}'
+                counter += 1
+
+            if name not in groups.keys():
+                groups[name] = {'start': i, 'end': i+1}
+                order.append(name)
+            else:
+                groups[name]['end'] = i+1
+
+        LOGGER.debug(groups)
+        for (i, name) in enumerate(order):
+            start = groups[name]['start']
+            end = len(features) if len(order) == i+1 else \
+                min(groups[name]['end'], groups[order[i+1]]['start'])
+
+            feature = features[start]
+            geo = [feature['geometry']['coordinates'], ]
+            for f in features[start:end]:
+                geo.append(
+                    f['geometry']['coordinates']
+                )
+                feature[P] = f[P]
+
+            geom = MultiLineString(geo)
+            feature['geometry']['type'] = geom.geom_type
+            feature['geometry']['coordinates'] = \
+                [p.coords[:] for p in geom.geoms]
+
+            out_features.append(feature)
+
+        return out_features
 
     def __repr__(self):
         return '<RiverRunnerProcessor> {}'.format(self.name)

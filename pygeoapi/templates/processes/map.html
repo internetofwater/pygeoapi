@@ -24,7 +24,7 @@
 {% block extrafoot %}
 <script>
 var loading = false;
-var map = L.map('river-runner-map', {maxZoom: 8}).setView([30, 0], 2);
+var map = L.map('river-runner-map', {maxZoom: 12}).setView([30, 0], 2);
 map.addLayer(new L.TileLayer(
     '{{ config['server']['map']['url'] }}', {
         maxZoom: 18,
@@ -33,18 +33,24 @@ map.addLayer(new L.TileLayer(
 ));
 var d = {
     "inputs": {
-        "bbox": [77.73, 27.033, 78.27, 27.49],
+        "bbox": [77.73, 27.033, 78.27, 27.49]
     }
 }
 function onMapClick(e) {
     if (loading){ alert('Still loading flowpath.'); return } else { loading = true; }
     d.inputs = e.latlng;
+    d.inputs.groupby = "streamlev"
+    d.inputs.sorted = "downstream"
     map.setView(e.latlng);
+    send_request(d)
+}
+map.on('click', onMapClick);
+
+function send_request(d){
     var popup = L.popup(keepInView=true)
-        .setLatLng(e.latlng)
+        .setLatLng(d.inputs)
         .setContent('Finding flowpath from this point.')
         .openOn(map);
-
     $.ajax({
         type:"POST",
         url: "/processes/river-runner/execution",
@@ -65,6 +71,17 @@ function onMapClick(e) {
                         var url = "/collections/merit/items/" + feature.id + '?f=html';
                         var html = '<span><a href="' + url + '">' + feature.properties.nameid + '</a></span>';
                         layer.bindPopup(html);
+                    },
+                    style: function(feature){
+                        var r = Math.floor(Math.random() * 255);
+                        var g = Math.floor(Math.random() * 255);
+                        var b = Math.floor(Math.random() * 255);
+                        var color = "rgb("+r+" ,"+g+","+ b+")"
+                        return {
+                        weight: 2,
+                        opacity: 1,
+                        color: color,
+                        };
                     }
                 });
                 map.addLayer(items);
@@ -76,8 +93,12 @@ function onMapClick(e) {
         },
     });
 }
-map.on('click', onMapClick);
-
+var d = JSON.parse('{{ {"inputs": data} | to_json | safe }}')
+if (Object.keys(d.inputs).length !== 0){
+    if (d.inputs.f !== 'jsonld'){
+        send_request(d);
+    }
+}
 </script>
 
 {% endblock %}

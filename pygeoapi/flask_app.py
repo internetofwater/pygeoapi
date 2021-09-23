@@ -305,7 +305,8 @@ def get_processes_map(process_id=None):
 
     :returns: HTTP response
     """
-    return render_j2_template(CONFIG, 'processes/map.html', {}, 'en-US')
+    return render_j2_template(CONFIG, 'processes/map.html',
+                              {**request.args}, 'en-US')
 
 
 @BLUEPRINT.route('/processes/<process_id>/jobs')
