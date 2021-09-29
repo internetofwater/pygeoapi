@@ -238,6 +238,10 @@ class RiverRunnerProcessor(BaseProcessor):
         bbox = self._make_bbox(data)
         order = self._make_order(data)
         groupby = data.get('groupby', '')
+        if groupby:
+            data['sortby'] = groupby
+            data['sorted'] = 'downstream'
+            order = self._make_order(data)
 
         p = load_plugin('provider', PROVIDER_DEF)
         value = p.query(bbox=bbox, sortby=order)
@@ -339,27 +343,33 @@ class RiverRunnerProcessor(BaseProcessor):
 
     def _group_by(self, features, groupby):
 
-        out_features, order = [], []
+        out_features = []
         groups = {}
-        counter = 0
+        # counter = 0
         for (i, f) in enumerate(features):
-            name = f'{f[P][groupby]}_'
-            if name in groups.keys() and \
-               f[P][groupby] != features[i-1][P][groupby]:
-                name = f'{f[P][groupby]}_{counter}'
-                counter += 1
-
+            # if name in groups.keys() and \
+            #    f[P][groupby] != features[i-1][P][groupby]:
+            #     name = f'{f[P][groupby]}_{counter}'
+            #     counter += 1
+            name = f[P][groupby]
             if name not in groups.keys():
                 groups[name] = {'start': i, 'end': i+1}
-                order.append(name)
             else:
                 groups[name]['end'] = i+1
 
         LOGGER.debug(groups)
-        for (i, name) in enumerate(order):
-            start = groups[name]['start']
-            end = len(features) if len(order) == i+1 else \
-                min(groups[name]['end'], groups[order[i+1]]['start'])
+        for val in groups.values():
+            # bound = False
+            # for other in groups.values():
+            #     if val['start'] > other['start'] and\
+            #        val['end'] < other['end']:
+            #         bound = True
+            # if bound is True:
+            #     LOGGER.debug(val)
+            #     continue
+
+            start = val['start']
+            end = val['end']
 
             feature = features[start]
             geo = [feature['geometry']['coordinates'], ]
