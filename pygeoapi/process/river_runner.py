@@ -334,28 +334,28 @@ class RiverRunnerProcessor(BaseProcessor):
         d['features'] = outm
         return d
 
-    def _from_bbox(self, bbox):
+    def _from_bbox(self, bbox, n=3, delta=0.025):
         """
         Private Function: Use bbox for start feature of river runner
 
         :param bbox: boundary box
+        :param n: number of loops
+        :param delta: degrees to expand bbox by
 
         :returns: GeoJSON feature
         """
         p = load_plugin('provider', PROVIDER)
         value = p.query(bbox=bbox, limit=100)
 
-        if len(value['features']) < 1:
+        attempts = 1
+        while len(value['features']) < 1 and attempts < n:
             LOGGER.debug(f'No features in bbox {bbox}, expanding')
-            bbox = self._expand_bbox(bbox)
-            value = p.query(
-                bbox=bbox,
-                limit=100
-                )
+            bbox = self._expand_bbox(bbox, e=delta)
+            value = p.query(bbox=bbox, limit=100)
 
-            if len(value['features']) < 1:
-                LOGGER.debug('No features found')
-                return
+        if len(value['features']) < 1:
+            LOGGER.debug('No features found')
+            return
 
         return self._compare(value, 'hydroseq', min)
 
@@ -379,7 +379,7 @@ class RiverRunnerProcessor(BaseProcessor):
             bbox = (data.get('lng'), data.get('lat'))
 
         bbox = bbox * 2 if len(bbox) == 2 else bbox
-        return self._expand_bbox(bbox, e=0)
+        return self._expand_bbox(bbox)
 
     def _make_order(self, data):
         """
@@ -431,7 +431,7 @@ class RiverRunnerProcessor(BaseProcessor):
                 val = f
         return val
 
-    def _expand_bbox(self, bbox, e=0.1):
+    def _expand_bbox(self, bbox, e=0.025):
         """
         Private Function: Expand and sort bbox
 
@@ -457,17 +457,27 @@ class RiverRunnerProcessor(BaseProcessor):
 
         :returns: list of merged features
         """
-        groups = {}
+        if isinstance(groupby, str):
+            groupby = groupby.strip('()[]').split(',')
+        LOGGER.debug(groupby)
+
+        groups = []
+        prev = {P: {gb: None for gb in groupby}}
         for (i, f) in enumerate(fc['features']):
-            name = f[P][groupby]
-            if name not in groups.keys():
-                groups[name] = {'start': i, 'end': i+1}
-            else:
-                groups[name]['end'] = i+1
+            gbs = [f[P][gb] for gb in groupby]
+            prevs = [prev[P][gb] for gb in groupby]
+            prev = f
+            same = True
+
+            for (_gb, _prevgb) in zip(gbs, prevs):
+                same = True if _gb == _prevgb and same is True else False
+
+            groups[-1].update({'end': i+1}) if same is True else \
+                groups.append({'start': i, 'end': i+1})
 
         LOGGER.debug(groups)
         out_features = []
-        for val in groups.values():
+        for val in groups:
             start = val['start']
             end = val['end']
             geo = [f['geometry']['coordinates']
@@ -478,6 +488,11 @@ class RiverRunnerProcessor(BaseProcessor):
             feature['geometry']['type'] = geom.geom_type
             feature['geometry']['coordinates'] = \
                 [p.coords[:] for p in geom.geoms]
+
+            keys = [*feature[P].keys()]
+            for k in keys:
+                if k not in groupby:
+                    feature[P].pop(k)
             out_features.append(feature)
 
         fc['features'] = out_features
