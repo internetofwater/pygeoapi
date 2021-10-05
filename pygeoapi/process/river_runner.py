@@ -29,9 +29,11 @@
 
 import os
 import logging
+from requests import get
 from shapely.geometry.multilinestring import MultiLineString
+from shapely import speedups
 
-from pygeoapi.util import yaml_load
+from pygeoapi.util import yaml_load, url_join
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.base import BaseProcessor, ProcessorExecuteError
 
@@ -39,14 +41,16 @@ from pygeoapi.process.base import BaseProcessor, ProcessorExecuteError
 LOGGER = logging.getLogger(__name__)
 CONFIG_ = ''
 P = 'properties'
+LOGGER.debug('Shapely speedups {}'.format(speedups.enabled))
 
 with open(os.getenv('PYGEOAPI_CONFIG'), encoding='utf8') as fh:
     CONFIG_ = yaml_load(fh)
 
-PROVIDER_DEF = CONFIG_['resources']['merit']['providers'][0]
+PROVIDER = CONFIG_['resources']['merit']['providers'][0]
+
 PROCESS_DEF = CONFIG_['resources']['river-runner']
 PROCESS_DEF.update({
-    'version': '0.1.0',
+    'version': '0.5.0',
     'id': 'river-runner',
     'inputs': {
         'bbox': {
@@ -116,6 +120,24 @@ PROCESS_DEF.update({
             'schema': {
                 'type': 'object',
                 'default': ['lng', 'lat']
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
+        },
+        'comid': {
+            'title': {
+                'en': 'Common Identifier'
+            },
+            'description': {
+                'en': 'Common Identifier of starting feature'
+            },
+            'keywords': {
+                'en': ['feature', 'common', 'identifier']
+            },
+            'schema': {
+                'type': 'number',
+                'default': ''
             },
             'minOccurs': 0,
             'maxOccurs': 1,
@@ -219,7 +241,7 @@ class RiverRunnerProcessor(BaseProcessor):
 
         :param data: processor arguments
 
-        :returns: 'application/json', outputs
+        :returns: 'application/json'
         """
         mimetype = 'application/json'
         outputs = {
@@ -231,39 +253,64 @@ class RiverRunnerProcessor(BaseProcessor):
                 }
             }
 
-        if not data.get('bbox') and not data.get('latlng') and \
-           (not data.get('lat') and not data.get('lng')):
-            raise ProcessorExecuteError(f'Invalid input: { {{data.items()}} }')
-
-        bbox = self._make_bbox(data)
         order = self._make_order(data)
         groupby = data.get('groupby', '')
         if groupby:
-            data['sortby'] = groupby
+            data['sortby'] = 'hydroseq'
             data['sorted'] = 'downstream'
             order = self._make_order(data)
 
-        p = load_plugin('provider', PROVIDER_DEF)
-        value = p.query(bbox=bbox, sortby=order)
+        LOGGER.debug('Fetching first feature')
+        if data.get('comid'):
+            outputs['value'] = self._from_comid(data, order)
+        else:
+            if not data.get('bbox') and not data.get('latlng') and \
+               (not data.get('lat') and not data.get('lng')):
+                raise ProcessorExecuteError(f'Invalid input: {data.items()}')
 
-        if len(value['features']) < 1:
-            LOGGER.debug(f'No features in bbox {bbox}, expanding')
-            bbox = self._expand_bbox(bbox, e=1)
-            value = p.query(bbox=bbox, sortby=order)
-
-            if len(value['features']) < 1:
-                LOGGER.debug('No features found')
+            f = self._from_bbox(self._make_bbox(data))
+            if not f:
+                outputs.update({
+                    'code': 'fail',
+                    'message': 'No features found'
+                    })
                 return mimetype, outputs
 
+            url = url_join(
+                CONFIG_['server']['url'],
+                'processes/river-runner/execution'
+                )
+            r = get(url, params={'comid': f['id']})
+            outputs['value'] = r.json().get('value')
+
+        if groupby:
+            outputs['value'] = self._group_by(outputs['value'], groupby)
+
+        return mimetype, outputs
+
+    def _from_comid(self, data, order):
+        """
+        Private Function: Use comid for start feature of river runner
+
+        :param data: processor arguments
+        :param order: OGC API sortby parameter
+
+        :returns: GeoJSON Feature Collection
+        """
+        p = load_plugin('provider', PROVIDER)
+        feature = p.get(data.pop('comid'))
+
         LOGGER.debug('fetching downstream features')
-        mh = self._compare(value, 'hydroseq', min)
-        levelpaths = self._levelpaths(mh)
+        levelpaths = self._levelpaths(feature)
 
         d = p.query(
                 properties=[('levelpathi', i) for i in levelpaths],
-                sortby=order, limit=10000, comp='OR'
+                sortby=order,
+                limit=10000,
+                comp='OR'
                 )
 
+        LOGGER.debug('finding mins')
         mins = {level: {} for level in levelpaths}
         for f in d['features']:
             key = str(f[P]['levelpathi'])
@@ -273,7 +320,7 @@ class RiverRunnerProcessor(BaseProcessor):
                min(prev, f[P]['hydroseq']) != prev:
                 mins[key] = f
 
-        trim = [(mh[P]['levelpathi'], mh[P]['hydroseq'])]
+        trim = [(feature[P]['levelpathi'], feature[P]['hydroseq'])]
         for v in mins.values():
             trim.append((v[P]['dnlevelpat'], v[P]['dnhydroseq']))
 
@@ -284,15 +331,42 @@ class RiverRunnerProcessor(BaseProcessor):
                 if f[P]['levelpathi'] == t[0] and \
                    f[P]['hydroseq'] <= t[1]:
                     outm.append(f)
+        d['features'] = outm
+        return d
 
-        if groupby in p.get_fields():
-            outm = self._group_by(outm, groupby)
+    def _from_bbox(self, bbox):
+        """
+        Private Function: Use bbox for start feature of river runner
 
-        value['features'] = outm
-        outputs.update({'value': value})
-        return mimetype, outputs
+        :param bbox: boundary box
+
+        :returns: GeoJSON feature
+        """
+        p = load_plugin('provider', PROVIDER)
+        value = p.query(bbox=bbox, limit=100)
+
+        if len(value['features']) < 1:
+            LOGGER.debug(f'No features in bbox {bbox}, expanding')
+            bbox = self._expand_bbox(bbox)
+            value = p.query(
+                bbox=bbox,
+                limit=100
+                )
+
+            if len(value['features']) < 1:
+                LOGGER.debug('No features found')
+                return
+
+        return self._compare(value, 'hydroseq', min)
 
     def _make_bbox(self, data):
+        """
+        Private Function: Make Boundary box from query parameters
+
+        :param data: processor arguments
+
+        :returns: OGC API bbox parameter
+        """
         for k, v in data.items():
             if isinstance(v, str):
                 data[k] = ','.join(v.split(',')).strip('()[]')
@@ -305,34 +379,67 @@ class RiverRunnerProcessor(BaseProcessor):
             bbox = (data.get('lng'), data.get('lat'))
 
         bbox = bbox * 2 if len(bbox) == 2 else bbox
-        return self._expand_bbox(bbox)
+        return self._expand_bbox(bbox, e=0)
 
     def _make_order(self, data):
-        order = data.get('sorted', [])
+        """
+        Private Function: Make sortby from query parameters
+
+        :param data: processor arguments
+
+        :returns: OGC API sortby parameter
+        """
+        order = data.get('sorted', 'downstream')
         if order and order not in ['unsorted', 'unset']:
             keys = {'downstream': '-', 'upstream': '+'}
             sortprop = data.get('sortby', 'hydroseq')
             order = [{'property': sortprop, 'order': keys[order]}]
-        return order
+            return order
+        else:
+            return []
 
     def _levelpaths(self, mh):
+        """
+        Private Function: Fetch downstream levelpathi's
+
+        :param mh: GeoJSON feature
+
+        :returns: list of downstream feature levelpathi's
+        """
         levelpaths = []
         for i in (mh[P]['levelpathi'],
                   *mh[P]['down_levelpaths'].split(',')):
             try:
                 levelpaths.append(str(int(float(i))))
             except ValueError:
-                LOGGER.debug(f'No Downstem Rivers found {i}')
+                LOGGER.debug('No Downstem Rivers found')
         return levelpaths
 
     def _compare(self, fc, prop, dir):
+        """
+        Private Function: Find min/max of a FeatureCollection
+
+        :param fc: GeoJSON FeatureCollection
+        :param prop: property to sort by
+        :param dir: min or max comparator
+
+        :returns: feature with min/max value of prop
+        """
         val = fc['features'][0]
         for f in fc['features']:
             if dir(f[P][prop], val[P][prop]) != val[P][prop]:
                 val = f
         return val
 
-    def _expand_bbox(self, bbox, e=0.25):
+    def _expand_bbox(self, bbox, e=0.1):
+        """
+        Private Function: Expand and sort bbox
+
+        :param bbox: Boundary Box in
+        :param e: distance to expand bbox
+
+        :returns: OGC API bbox
+        """
         def bound(coords, b, dir):
             return dir(map(lambda c: (c + b) % (b * 2) - b, coords))
 
@@ -341,16 +448,17 @@ class RiverRunnerProcessor(BaseProcessor):
         return [bound(bbox[::2], 180, min), bound(bbox[1::2], 90, min),
                 bound(bbox[::2], 180, max), bound(bbox[1::2], 90, max)]
 
-    def _group_by(self, features, groupby):
+    def _group_by(self, fc, groupby):
+        """
+        Private Function: Merge features into multiline string
 
-        out_features = []
+        :param fc: GeoJSON Feature Collection
+        :param groupby: parameter to group on
+
+        :returns: list of merged features
+        """
         groups = {}
-        # counter = 0
-        for (i, f) in enumerate(features):
-            # if name in groups.keys() and \
-            #    f[P][groupby] != features[i-1][P][groupby]:
-            #     name = f'{f[P][groupby]}_{counter}'
-            #     counter += 1
+        for (i, f) in enumerate(fc['features']):
             name = f[P][groupby]
             if name not in groups.keys():
                 groups[name] = {'start': i, 'end': i+1}
@@ -358,35 +466,22 @@ class RiverRunnerProcessor(BaseProcessor):
                 groups[name]['end'] = i+1
 
         LOGGER.debug(groups)
+        out_features = []
         for val in groups.values():
-            # bound = False
-            # for other in groups.values():
-            #     if val['start'] > other['start'] and\
-            #        val['end'] < other['end']:
-            #         bound = True
-            # if bound is True:
-            #     LOGGER.debug(val)
-            #     continue
-
             start = val['start']
             end = val['end']
-
-            feature = features[start]
-            geo = [feature['geometry']['coordinates'], ]
-            for f in features[start:end]:
-                geo.append(
-                    f['geometry']['coordinates']
-                )
-                feature[P] = f[P]
-
+            geo = [f['geometry']['coordinates']
+                   for f in fc['features'][start:end]]
             geom = MultiLineString(geo)
+
+            feature = fc['features'][end-1]
             feature['geometry']['type'] = geom.geom_type
             feature['geometry']['coordinates'] = \
                 [p.coords[:] for p in geom.geoms]
-
             out_features.append(feature)
 
-        return out_features
+        fc['features'] = out_features
+        return fc
 
     def __repr__(self):
         return '<RiverRunnerProcessor> {}'.format(self.name)

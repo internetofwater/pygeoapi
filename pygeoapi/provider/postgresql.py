@@ -271,7 +271,8 @@ class PostgreSQLProvider(BaseProvider):
             cursor = db.conn.cursor(cursor_factory=RealDictCursor)
 
             props = db.columns if select_properties == [] else \
-                SQL(', ').join([Identifier(p) for p in select_properties])
+                SQL(', ').join([Identifier(p) for p in
+                               (self.id_field, *select_properties)])
 
             geom = SQL('') if skip_geometry else \
                 SQL(",ST_AsGeoJSON({})").format(Identifier(self.geom))

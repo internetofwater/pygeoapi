@@ -62,7 +62,7 @@ function send_request(d){
             loading = false;
             var geojson_data = response.value;
             if (response.code !== 'success'){
-                alert('Server Error: ' + response.description);
+                alert('Server Error: ' + response.message);
             } else if (geojson_data.features.length === 0){
                 alert('No flowpath found. :(')
             } else {
