@@ -419,8 +419,8 @@ class PostgreSQLProvider(BaseProvider):
 
             feature['geometry'] = json.loads(geom) if geom is not None else None  # noqa
 
+            feature['id'] = rd.pop(self.id_field)
             feature['properties'] = rd
-            feature['id'] = feature['properties'].pop(self.id_field)
 
             return feature
         else:
