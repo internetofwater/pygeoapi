@@ -39,7 +39,7 @@ var d = {
 function onMapClick(e) {
     if (loading){ alert('Still loading flowpath.'); return } else { loading = true; }
     d.inputs = e.latlng;
-    d.inputs.groupby = "nameid";
+    d.inputs.groupby = "nameid,streamlev,levelpathi";
     d.inputs.sorted = "downstream";
     map.setView(e.latlng);
     send_request(d)
@@ -52,11 +52,10 @@ function send_request(d){
         .setContent('Finding flowpath from this point.')
         .openOn(map);
     $.ajax({
-        type:"POST",
+        type:"GET",
         url: "/processes/river-runner/execution",
-        data: JSON.stringify(d),
+        data: JSON.parse(JSON.stringify(d.inputs)),
         contentType: 'application/json; charset=UTF-8',
-        processData: false,
         success: function(response) {
             popup.remove();
             loading = false;
