@@ -125,15 +125,15 @@ PROCESS_DEF.update({
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
         },
-        'comid': {
+        'fid': {
             'title': {
-                'en': 'Common Identifier'
+                'en': 'OGC Features Identifier'
             },
             'description': {
-                'en': 'Common Identifier of starting feature'
+                'en': 'Identifier of starting feature'
             },
             'keywords': {
-                'en': ['feature', 'common', 'identifier']
+                'en': ['feature', 'ogc', 'identifier']
             },
             'schema': {
                 'type': 'number',
@@ -261,8 +261,9 @@ class RiverRunnerProcessor(BaseProcessor):
             order = self._make_order(data)
 
         LOGGER.debug('Fetching first feature')
-        if data.get('comid'):
-            outputs['value'] = self._from_comid(data, order)
+        fid = data.get('fid')
+        if fid:
+            outputs['value'] = self._from_fid(fid, order)
         else:
             if not data.get('bbox') and not data.get('latlng') and \
                (not data.get('lat') and not data.get('lng')):
@@ -280,7 +281,7 @@ class RiverRunnerProcessor(BaseProcessor):
                 CONFIG_['server']['url'],
                 'processes/river-runner/execution'
                 )
-            r = get(url, params={'comid': f['id']})
+            r = get(url, params={'fid': f['id']})
             outputs['value'] = r.json().get('value')
 
         if groupby:
@@ -288,17 +289,17 @@ class RiverRunnerProcessor(BaseProcessor):
 
         return mimetype, outputs
 
-    def _from_comid(self, data, order):
+    def _from_fid(self, fid, order):
         """
-        Private Function: Use comid for start feature of river runner
+        Private Function: Use ogc_fid for start feature of river runner
 
-        :param data: processor arguments
+        :param fid: feature id
         :param order: OGC API sortby parameter
 
         :returns: GeoJSON Feature Collection
         """
         p = load_plugin('provider', PROVIDER)
-        feature = p.get(data.pop('comid'))
+        feature = p.get(fid)
 
         LOGGER.debug('fetching downstream features')
         levelpaths = self._levelpaths(feature)
