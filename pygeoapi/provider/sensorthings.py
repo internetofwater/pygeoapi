@@ -63,9 +63,7 @@ _EXPAND = {
         ,Thing(
             $select=@iot.id,properties
             )
-        ,Thing/Locations(
-            $select=location
-            )
+        ,Thing/Locations
         ,Observations(
             $select=@iot.id;
             $orderby=phenomenonTime_desc
@@ -192,7 +190,8 @@ class SensorThingsProvider(BaseProvider):
                 for p in rs['providers']:
                     # Validate linkable provider
                     if (p['name'] != 'SensorThings'
-                            or not p.get('intralink', False)):
+                            or not p.get('intralink', False)
+                            or p['data'] != self.data):
                         continue
 
                     if p.get('default', False) is True:
@@ -400,6 +399,10 @@ class SensorThingsProvider(BaseProvider):
         if self.entity == 'Things':
             extra_props = entity['Locations'][0].get('properties', {})
             entity['properties'].update(extra_props)
+        elif 'Thing' in entity.keys():
+            t = entity.get('Thing')
+            extra_props = t['Locations'][0].get('properties', {})
+            t['properties'].update(extra_props)
 
         for k, v in entity.items():
             # Create intra links
