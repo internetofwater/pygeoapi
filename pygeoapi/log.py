@@ -31,6 +31,7 @@
 
 import logging
 import sys
+import os
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +59,10 @@ def setup_logger(logging_config):
     }
 
     loglevel = loglevels[logging_config['level']]
+
+    if logging_config.get('fresh') is True and \
+       os.path.exists(logging_config['logfile']):
+        os.remove(logging_config['logfile'])
 
     if 'logfile' in logging_config:
         logging.basicConfig(level=loglevel, datefmt=date_format,
