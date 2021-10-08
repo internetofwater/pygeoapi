@@ -54,9 +54,9 @@ function send_request(d){
     $.ajax({
         type:"POST",
         url: "/processes/river-runner/execution",
-        data: JSON.stringify(d.inputs),
+        data: JSON.stringify(d),
         contentType: 'application/json; charset=UTF-8',
-        processData=false,
+        processData: false,
         success: function(response) {
             popup.remove();
             loading = false;
