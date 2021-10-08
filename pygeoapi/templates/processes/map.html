@@ -52,23 +52,21 @@ function send_request(d){
         .setContent('Finding flowpath from this point.')
         .openOn(map);
     $.ajax({
-        type:"GET",
+        type:"POST",
         url: "/processes/river-runner/execution",
-        data: JSON.parse(JSON.stringify(d.inputs)),
+        data: JSON.stringify(d.inputs),
         contentType: 'application/json; charset=UTF-8',
+        processData=false,
         success: function(response) {
             popup.remove();
             loading = false;
             var geojson_data = response.value;
-            if (response.code !== 'success'){
-                alert('Server Error: ' + response.message);
-            } else if (geojson_data.features.length === 0){
-                alert('No flowpath found. :(')
+            if (response.code !== 'success' || geojson_data.features.length === 0){
+                alert('No flowpath found.')
             } else {
                 var items = new L.GeoJSON(geojson_data, {
                     onEachFeature: function (feature, layer) {
-                        var p = new URLSearchParams(feature.properties);
-                        var url = "/collections/merit/items/" + '?f=html&' + p.toString();
+                        var url = "/processes/river-runner/execution?id=" + feature.id;
                         var html = '<span><a href="' + url + '">' + feature.properties.nameid + '</a></span>';
                         layer.bindPopup(html);
                     },
