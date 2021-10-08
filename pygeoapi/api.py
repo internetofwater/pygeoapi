@@ -93,6 +93,7 @@ FORMAT_TYPES = OrderedDict((
     (F_HTML, 'text/html'),
     (F_JSONLD, 'application/ld+json'),
     (F_JSON, 'application/json'),
+    (F_GZIP, 'application/gzip')
 ))
 
 #: Locale used for system responses (e.g. exceptions)
@@ -1542,7 +1543,15 @@ class API:
                 self.config, content, dataset, id_field=(p.uri_field or 'id')
             )
 
-        return headers, 200, to_json(content, self.pretty_print)
+        if F_GZIP in request.headers.get('Accept-Encoding'):
+            encoding = self.config['server']['encoding']
+            response_json = to_json(content)
+            content = compress(response_json.encode(encoding))
+            headers['Content-Encoding'] = F_GZIP
+        else:
+            content = to_json(content, self.pretty_print)
+
+        return headers, 200, content
 
     @gzip
     @pre_process
@@ -2760,7 +2769,15 @@ class API:
         else:
             http_status = 200
 
-        return headers, http_status, to_json(response, self.pretty_print)
+        if F_GZIP in request.headers.get('Accept-Encoding'):
+            encoding = self.config['server']['encoding']
+            response_json = to_json(response)
+            content = compress(response_json.encode(encoding))
+            headers['Content-Encoding'] = F_GZIP
+        else:
+            content = to_json(response, self.pretty_print)
+
+        return headers, http_status, content
 
     @gzip
     @pre_process

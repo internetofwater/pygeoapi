@@ -47,9 +47,15 @@ function onMapClick(e) {
 map.on('click', onMapClick);
 
 function send_request(d){
+    var latlng = JSON.parse(JSON.stringify(d.inputs))
+    if ('id' in d.inputs){
+        if (!('lat' in d.inputs)){ latlng.lat=0; }
+        if (!('lng' in d.inputs)){ latlng.lng=0; }
+
+    }
     var popup = L.popup(keepInView=true)
-        .setLatLng(d.inputs)
-        .setContent('Finding flowpath from this point.')
+        .setLatLng(latlng)
+        .setContent('Finding flowpath')
         .openOn(map);
     $.ajax({
         type:"POST",

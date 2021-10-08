@@ -331,7 +331,7 @@ class RiverRunnerProcessor(BaseProcessor):
         d['features'] = outm
         return d
 
-    def _from_bbox(self, bbox, n=3, delta=0.025):
+    def _from_bbox(self, bbox, n=3, delta=0.05):
         """
         Private Function: Use bbox for start feature of river runner
 
@@ -349,6 +349,7 @@ class RiverRunnerProcessor(BaseProcessor):
             LOGGER.debug(f'No features in bbox {bbox}, expanding')
             bbox = self._expand_bbox(bbox, e=delta)
             value = p.query(bbox=bbox)
+            attempts += 1
 
         if len(value['features']) < 1:
             LOGGER.debug('No features found')
