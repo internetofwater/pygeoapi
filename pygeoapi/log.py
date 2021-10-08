@@ -60,8 +60,7 @@ def setup_logger(logging_config):
 
     loglevel = loglevels[logging_config['level']]
 
-    if logging_config.get('fresh') is True and \
-       os.path.exists(logging_config['logfile']):
+    if os.path.isfile(logging_config.get('logfile', '.')):
         os.remove(logging_config['logfile'])
 
     if 'logfile' in logging_config:
