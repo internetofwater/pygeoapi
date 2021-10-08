@@ -92,8 +92,7 @@ F_GZIP = 'gzip'
 FORMAT_TYPES = OrderedDict((
     (F_HTML, 'text/html'),
     (F_JSONLD, 'application/ld+json'),
-    (F_JSON, 'application/json'),
-    (F_GZIP, 'application/gzip')
+    (F_JSON, 'application/json')
 ))
 
 #: Locale used for system responses (e.g. exceptions)
@@ -1543,7 +1542,8 @@ class API:
                 self.config, content, dataset, id_field=(p.uri_field or 'id')
             )
 
-        if F_GZIP in request.headers.get('Accept-Encoding'):
+        if isinstance(request.headers, dict) and\
+           F_GZIP in request.headers.get('Accept-Encoding'):
             encoding = self.config['server']['encoding']
             response_json = to_json(content)
             content = compress(response_json.encode(encoding))
@@ -2769,7 +2769,8 @@ class API:
         else:
             http_status = 200
 
-        if F_GZIP in request.headers.get('Accept-Encoding'):
+        if isinstance(request.headers, dict) and\
+           F_GZIP in request.headers.get('Accept-Encoding'):
             encoding = self.config['server']['encoding']
             response_json = to_json(response)
             content = compress(response_json.encode(encoding))
