@@ -1543,8 +1543,7 @@ class API:
                 self.config, content, dataset, id_field=(p.uri_field or 'id')
             )
 
-        if isinstance(request.headers, dict) and\
-           F_GZIP in request.headers.get('Accept-Encoding'):
+        if F_GZIP in request.headers.get('Accept-Encoding', []):
             encoding = self.config['server']['encoding']
             response_json = to_json(content)
             content = compress(response_json.encode(encoding))
@@ -2770,8 +2769,7 @@ class API:
         else:
             http_status = 200
 
-        if isinstance(request.headers, dict) and\
-           F_GZIP in request.headers.get('Accept-Encoding'):
+        if F_GZIP in request.headers.get('Accept-Encoding', []):
             encoding = self.config['server']['encoding']
             response_json = to_json(response)
             content = compress(response_json.encode(encoding))
