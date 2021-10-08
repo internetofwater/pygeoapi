@@ -125,15 +125,15 @@ PROCESS_DEF.update({
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
         },
-        'fid': {
+        'id': {
             'title': {
-                'en': 'OGC Features Identifier'
+                'en': 'OGC Feature Identifier'
             },
             'description': {
                 'en': 'Identifier of starting feature'
             },
             'keywords': {
-                'en': ['feature', 'ogc', 'identifier']
+                'en': ['feature', 'ogc', 'id', 'identifier']
             },
             'schema': {
                 'type': 'number',
@@ -184,13 +184,13 @@ PROCESS_DEF.update({
                 'en': 'Group By'
             },
             'description': {
-                'en': 'Property by which to group features'
+                'en': 'Properties by which to group features'
             },
             'keywords': {
                 'en': ['group', 'nameid', 'streamlev']
             },
             'schema': {
-                'type': 'string',
+                'type': ['string', 'list'],
                 'default': None
             },
             'minOccurs': 0,
@@ -216,7 +216,8 @@ PROCESS_DEF.update({
     'example': {
         'inputs': {
             'bbox': [-86.2, 39.7, -86.15, 39.75],
-            'sorted': 'downstream'
+            'sorted': 'downstream',
+            'groupby': 'nameid,streamlev,levelpathi'
         }
     }
 })
@@ -253,17 +254,15 @@ class RiverRunnerProcessor(BaseProcessor):
                 }
             }
 
-        order = self._make_order(data)
         groupby = data.get('groupby', '')
         if groupby:
             data['sortby'] = 'hydroseq'
             data['sorted'] = 'downstream'
-            order = self._make_order(data)
+        order = self._make_order(data)
 
         LOGGER.debug('Fetching first feature')
-        fid = data.get('fid')
-        if fid:
-            outputs['value'] = self._from_fid(fid, order)
+        if data.get('id', None):
+            outputs['value'] = self._from_fid(data.pop('id'), order)
         else:
             if not data.get('bbox') and not data.get('latlng') and \
                (not data.get('lat') and not data.get('lng')):
@@ -271,17 +270,14 @@ class RiverRunnerProcessor(BaseProcessor):
 
             f = self._from_bbox(self._make_bbox(data))
             if not f:
-                outputs.update({
-                    'code': 'fail',
-                    'message': 'No features found'
-                    })
+                outputs['code'] = 'fail'
                 return mimetype, outputs
 
             url = url_join(
                 CONFIG_['server']['url'],
                 'processes/river-runner/execution'
                 )
-            r = get(url, params={'fid': f['id']})
+            r = get(url, params={'id': f['id']})
             outputs['value'] = r.json().get('value')
 
         if groupby:
@@ -346,13 +342,13 @@ class RiverRunnerProcessor(BaseProcessor):
         :returns: GeoJSON feature
         """
         p = load_plugin('provider', PROVIDER)
-        value = p.query(bbox=bbox, limit=100)
+        value = p.query(bbox=bbox)
 
         attempts = 1
         while len(value['features']) < 1 and attempts < n:
             LOGGER.debug(f'No features in bbox {bbox}, expanding')
             bbox = self._expand_bbox(bbox, e=delta)
-            value = p.query(bbox=bbox, limit=100)
+            value = p.query(bbox=bbox)
 
         if len(value['features']) < 1:
             LOGGER.debug('No features found')

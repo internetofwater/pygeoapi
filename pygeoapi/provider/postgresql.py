@@ -283,7 +283,7 @@ class PostgreSQLProvider(BaseProvider):
             orderby = self._make_orderby(sortby) if sortby else SQL('')
 
             sql_query = SQL("DECLARE \"geo_cursor\" CURSOR FOR \
-             SELECT DISTINCT {} {} FROM {} {} {}").\
+             SELECT {} {} FROM {} {} {}").\
                 format(props,
                        geom,
                        Identifier(self.table),
@@ -306,6 +306,7 @@ class PostgreSQLProvider(BaseProvider):
 
             row_data = cursor.fetchall()
 
+            LOGGER.debug('Building Feature collection')
             feature_collection = {
                 'type': 'FeatureCollection',
                 'features': []
