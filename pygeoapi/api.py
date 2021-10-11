@@ -147,6 +147,28 @@ def pre_process(func):
 
     return inner
 
+def gzip(func):
+    """
+    Decorator that compresses an outgoing Request instance.
+
+    :param func: decorated function
+
+    :returns: `func`
+    """
+
+    def inner(*args, **kwargs):
+        headers, status, content = func(*args, **kwargs)
+        if F_GZIP in headers.get('Content-Encoding', []):
+            try:
+                content = compress(content.encode('utf-8'))
+            except:
+                headers.pop('Content-Encoding')
+                LOGGER.error(f'Failted to compress: {headers}')
+
+        return headers, status, content
+
+    return inner
+
 
 def gzip(func):
     """
@@ -1196,15 +1218,7 @@ class API:
 
             return headers, 200, content
 
-        if F_GZIP in request.headers.get('Accept-Encoding', []):
-            encoding = self.config['server']['encoding']
-            response_json = to_json(queryables)
-            content = compress(response_json.encode(encoding))
-            headers['Content-Encoding'] = F_GZIP
-        else:
-            content = to_json(queryables, self.pretty_print)
-
-        return headers, 200, content
+        return headers, 200, to_json(queryables, self.pretty_print)
 
     @gzip
     @pre_process
@@ -1551,15 +1565,7 @@ class API:
                 self.config, content, dataset, id_field=(p.uri_field or 'id')
             )
 
-        if F_GZIP in request.headers.get('Accept-Encoding', []):
-            encoding = self.config['server']['encoding']
-            response_json = to_json(content)
-            content = compress(response_json.encode(encoding))
-            headers['Content-Encoding'] = F_GZIP
-        else:
-            content = to_json(content, self.pretty_print)
-
-        return headers, 200, content
+        return headers, 200, to_json(content, self.pretty_print)
 
     @gzip
     @pre_process
@@ -1799,15 +1805,7 @@ class API:
         except (UnicodeDecodeError, AttributeError):
             pass
 
-        if F_GZIP in request.headers.get('Accept-Encoding', []):
-            encoding = self.config['server']['encoding']
-            response_json = to_json(content)
-            content = compress(response_json.encode(encoding))
-            headers['Content-Encoding'] = F_GZIP
-        else:
-            content = to_json(content, self.pretty_print)
-
-        return headers, 200, content
+        return headers, 200, to_json(content, self.pretty_print)
 
     @gzip
     @pre_process
@@ -1956,15 +1954,7 @@ class API:
                 self.config, content, dataset, uri, (p.uri_field or 'id')
             )
 
-        if F_GZIP in request.headers.get('Accept-Encoding', []):
-            encoding = self.config['server']['encoding']
-            response_json = to_json(content)
-            content = compress(response_json.encode(encoding))
-            headers['Content-Encoding'] = F_GZIP
-        else:
-            content = to_json(content, self.pretty_print)
-
-        return headers, 200, content
+        return headers, 200, to_json(content, self.pretty_print)
 
     @pre_process
     @jsonldify
@@ -2793,15 +2783,7 @@ class API:
         else:
             http_status = 200
 
-        if F_GZIP in request.headers.get('Accept-Encoding', []):
-            encoding = self.config['server']['encoding']
-            response_json = to_json(response)
-            content = compress(response_json.encode(encoding))
-            headers['Content-Encoding'] = F_GZIP
-        else:
-            content = to_json(response, self.pretty_print)
-
-        return headers, http_status, content
+        return headers, http_status, to_json(response, self.pretty_print)
 
     @gzip
     @pre_process
