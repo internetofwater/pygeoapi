@@ -72,7 +72,8 @@ function send_request(d){
             } else {
                 var items = new L.GeoJSON(geojson_data, {
                     onEachFeature: function (feature, layer) {
-                        var url = "/processes/river-runner/execution?id=" + feature.id;
+                        var p = new URLSearchParams(feature.properties);
+                        var url = "/collections/merit/items/?f=html&" + p.toString();
                         var html = '<span><a href="' + url + '">' + feature.properties.nameid + '</a></span>';
                         layer.bindPopup(html);
                     },
