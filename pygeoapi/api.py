@@ -38,7 +38,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime, timezone
 from functools import partial
-from gzip import compress
+from gzip import compress, BadGzipFile
 import json
 import logging
 import os
@@ -147,6 +147,7 @@ def pre_process(func):
 
     return inner
 
+
 def gzip(func):
     """
     Decorator that compresses an outgoing Request instance.
@@ -161,8 +162,9 @@ def gzip(func):
         if F_GZIP in headers.get('Content-Encoding', []):
             try:
                 content = compress(content.encode('utf-8'))
-            except:
+            except BadGzipFile as err:
                 headers.pop('Content-Encoding')
+                LOGGER.error(f'Exception in compression: {err}')
                 LOGGER.error(f'Failted to compress: {headers}')
 
         return headers, status, content
