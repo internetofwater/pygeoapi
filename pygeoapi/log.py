@@ -60,13 +60,11 @@ def setup_logger(logging_config):
 
     loglevel = loglevels[logging_config['level']]
 
-    if os.path.isfile(logging_config.get('logfile', '.')):
-        os.remove(logging_config['logfile'])
-
     if 'logfile' in logging_config:
         logging.basicConfig(level=loglevel, datefmt=date_format,
                             format=log_format,
-                            filename=logging_config['logfile'])
+                            filename=logging_config['logfile'],
+                            filemode='a+')
     else:
         logging.basicConfig(level=loglevel, datefmt=date_format,
                             format=log_format, stream=sys.stdout)

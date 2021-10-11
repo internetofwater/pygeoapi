@@ -1196,7 +1196,15 @@ class API:
 
             return headers, 200, content
 
-        return headers, 200, to_json(queryables, self.pretty_print)
+        if F_GZIP in request.headers.get('Accept-Encoding', []):
+            encoding = self.config['server']['encoding']
+            response_json = to_json(queryables)
+            content = compress(response_json.encode(encoding))
+            headers['Content-Encoding'] = F_GZIP
+        else:
+            content = to_json(queryables, self.pretty_print)
+
+        return headers, 200, content
 
     @gzip
     @pre_process
@@ -1791,7 +1799,15 @@ class API:
         except (UnicodeDecodeError, AttributeError):
             pass
 
-        return headers, 200, to_json(content, self.pretty_print)
+        if F_GZIP in request.headers.get('Accept-Encoding', []):
+            encoding = self.config['server']['encoding']
+            response_json = to_json(content)
+            content = compress(response_json.encode(encoding))
+            headers['Content-Encoding'] = F_GZIP
+        else:
+            content = to_json(content, self.pretty_print)
+
+        return headers, 200, content
 
     @gzip
     @pre_process
@@ -1940,7 +1956,15 @@ class API:
                 self.config, content, dataset, uri, (p.uri_field or 'id')
             )
 
-        return headers, 200, to_json(content, self.pretty_print)
+        if F_GZIP in request.headers.get('Accept-Encoding', []):
+            encoding = self.config['server']['encoding']
+            response_json = to_json(content)
+            content = compress(response_json.encode(encoding))
+            headers['Content-Encoding'] = F_GZIP
+        else:
+            content = to_json(content, self.pretty_print)
+
+        return headers, 200, content
 
     @pre_process
     @jsonldify
