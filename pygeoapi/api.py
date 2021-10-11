@@ -38,7 +38,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime, timezone
 from functools import partial
-from gzip import compress, BadGzipFile
+from gzip import compress
 import json
 import logging
 import os
@@ -162,7 +162,7 @@ def gzip(func):
         if F_GZIP in headers.get('Content-Encoding', []):
             try:
                 content = compress(content.encode('utf-8'))
-            except BadGzipFile as err:
+            except TypeError as err:
                 headers.pop('Content-Encoding')
                 LOGGER.error(f'Exception in compression: {err}')
                 LOGGER.error(f'Failted to compress: {headers}')
