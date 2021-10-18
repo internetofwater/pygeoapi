@@ -48,22 +48,16 @@ ENTITY = {
 _EXPAND = {
     'Things': """
         Locations,
-        Datastreams(
-            $select=@iot.id,properties
-            )
+        Datastreams
     """,
     'Observations': """
-        Datastream(
-            $select=@iot.id,properties
-            ),
+        Datastream,
         FeatureOfInterest
     """,
     'Datastreams': """
         Sensor
         ,ObservedProperty
-        ,Thing(
-            $select=@iot.id,properties
-            )
+        ,Thing,
         ,Thing/Locations
         ,Observations(
             $select=@iot.id;
