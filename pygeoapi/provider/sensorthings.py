@@ -33,6 +33,7 @@ import logging
 from pygeoapi.provider.base import (BaseProvider, ProviderQueryError,
                                     ProviderConnectionError,
                                     ProviderItemNotFoundError)
+from json.decoder import JSONDecodeError
 from pygeoapi.util import yaml_load
 
 LOGGER = logging.getLogger(__name__)
@@ -122,7 +123,12 @@ class SensorThingsProvider(BaseProvider):
         if not self.fields:
             p = {'$expand': EXPAND[self.entity], '$top': 1}
             r = get(self._url, params=p)
-            results = r.json()['value'][0]
+            try:
+                results = r.json()['value'][0]
+            except JSONDecodeError as err:
+                LOGGER.error('Entity {} error: {}'.format(self.entity, err))
+                LOGGER.error('Bad url response at {}'.format(r.url))
+                raise ProviderQueryError(err)
 
             for (n, v) in results.items():
                 if isinstance(v, (int, float)) or \
