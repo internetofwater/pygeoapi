@@ -47,17 +47,17 @@ ENTITY = {
     }
 _EXPAND = {
     'Things': """
-        Locations,
-        Datastreams
+        Locations
+        ,Datastreams
     """,
     'Observations': """
-        Datastream,
-        FeatureOfInterest
+        Datastream
+        ,FeatureOfInterest
     """,
     'Datastreams': """
         Sensor
         ,ObservedProperty
-        ,Thing,
+        ,Thing
         ,Thing/Locations
         ,Observations(
             $select=@iot.id;
