@@ -1,6 +1,9 @@
 name: pygeoapi-river-runner build
 
-on: [ push ]
+on:
+  push:
+    branches:
+      - 'river-runner'
 
 jobs:
   docker:
@@ -27,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: webbben/pygeoapi-river-runner:latest
+          tags: internetofwater/pygeoapi:river-runner
           context: .
       -
         name: Image digest
