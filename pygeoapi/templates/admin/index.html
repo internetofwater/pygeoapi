@@ -1,0 +1,151 @@
+{% extends "_base.html" %}
+{% block title %} Admin {% endblock %}
+
+{% block extrahead %}
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+{% endblock %}
+
+{% block body %}
+  <div id="app" data-app>
+
+    <v-alert v-model="alert" prominent outlined close-text="Close Alert" :type="al.status" dismissable>
+      <v-row align-center>
+        <v-col class="grow">
+          <strong>[[ al.path ]]</strong><br><strong>[[ al.msg ]]</strong>
+        </v-col>
+        <v-col class="shrink">
+          <v-btn icon fab depressed right @click="alert = false"> <v-icon>mdi-close</v-icon> </v-btn>
+        </v-col>
+      </v-row>
+    </v-alert>
+
+    <v-main>
+      <v-container>
+        <v-tabs v-model="tab">
+
+          <v-tab v-for="(val, key) in tree" :key="key">[[ key ]]</v-tab>
+          <v-spacer></v-spacer>
+          <v-btn @click="send(tree,'/admin/config')" outlined depressed> Upload Configuation </v-btn>
+
+        </v-tabs>
+        <v-tabs-items v-model="tab">
+          <v-tab-item v-for="(val, key) in tree" :key="key">
+
+            <template v-if="key === 'resources'">
+              <resource-block :key="'tree.'+key" :label="key" :vals="val"></resource-block>
+            </template>
+            <template v-else>
+              <gui-block :key="'tree.'+key" :label="key" :vals="val"></gui-block>  
+            </template>
+
+          </v-tab-item>
+        </v-tabs-items>
+      </v-container>
+    </v-main>
+  </div>
+{% endblock %}
+
+{% block extrafoot %}
+{% include "admin/guiblock.html" %}
+{% include "admin/dialogblock.html" %}
+{% include "admin/editableblock.html" %}
+{% include "admin/resourceblock.html" %}
+{% include "admin/addblock.html" %}
+
+  <script>
+    const vue = new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      delimiters: ['[[', ']]'],
+      computed: {
+        languages: function() { 
+          const ret = {}
+          for (const lang of this.tree.server.languages){
+            ret[lang.match( /([a-z]){2}/g )] = ''
+          }
+          return ret
+        }
+      },
+      watch: {
+        languages: function(langs){ // Soft push server languages
+          var meta = this.tree.metadata.identification
+          meta.title = Object.assign(this.copy(langs), meta.title)
+          meta.description = Object.assign(this.copy(langs), meta.description)
+          meta.keywords = Object.assign(this.copy(langs), meta.keywords)
+          
+          for (const resources of [this.tree.resources, this.template.resources]){
+            for (const resource of Object.values(resources)){
+              resource.title = Object.assign(this.copy(langs), resource.title)
+              resource.description = Object.assign(this.copy(langs), resource.description)
+              resource.keywords = Object.assign(this.copy(langs), resource.keywords)
+            }
+          }
+        }
+      },
+      methods: {
+        capitalize: function(input, len){
+            if (typeof input === 'string'){
+              return (input.slice(0,len).toUpperCase() + input.replaceAll("_", " ").slice(len))
+            }
+        },
+        isdict: function(input){
+          return (input && typeof input === 'object' && !input.length)
+        },
+        islist: function(input){
+          return (input != null && typeof input === 'object' && input.length > 0)
+        },
+        copy: function(input){
+          return JSON.parse(JSON.stringify(input))
+        },
+        send: function(d, path, update){
+          var self = this;
+          return axios.post(path, 
+                           data=d, 
+                           { 
+                             withCredentials: true,
+                })
+                .then(function(response) {
+                  console.log(response.data)
+                  var data = response.data
+                  self.al.msg = data.msg
+                  self.al.status = 'success'
+                  self.alert = true
+                })
+                .catch(function(error) {
+                  var err = error.response.data
+                  self.al.msg = err.msg
+                  self.al.path = 'Error at ' + err.path
+                  self.al.status = 'error'
+                  self.alert = true
+                  return Promise.reject(error);
+                })
+                .then(function () {
+                // always executed
+                })
+              ;
+        },
+      },
+      data: function () {
+        return {
+          tab: null,
+          alert: false,
+          al: {
+            msg: '',
+            path: '',
+            status: 'success'
+          },
+          tree: {{ config | to_json | safe }},
+          template: {{ data | to_json | safe }},
+          dialog: false,
+        }
+      },
+    })
+  </script>
+{% endblock %}

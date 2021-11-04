@@ -59,6 +59,8 @@ function error() {
 # Workdir
 cd ${PYGEOAPI_HOME}
 
+mkdir "${PYGEOAPI_HOME}/data"
+
 echo "Trying to generate openapi.yml"
 pygeoapi openapi generate ${PYGEOAPI_CONFIG} > ${PYGEOAPI_OPENAPI}
 
@@ -98,6 +100,8 @@ case ${entry_cmd} in
 				--timeout ${WSGI_WORKER_TIMEOUT} \
 				--name=${CONTAINER_NAME} \
 				--bind ${CONTAINER_HOST}:${CONTAINER_PORT} \
+				--reload \
+				--reload-extra-file ${PYGEOAPI_CONFIG} \
 				pygeoapi.flask_app:APP
 	  ;;
 	*)

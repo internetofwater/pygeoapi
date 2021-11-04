@@ -1,0 +1,170 @@
+<script>
+    Vue.component('AddBlock', {
+        props: ['vals', 'label', 'config'],
+        name: 'AddBlock',
+        template: '#add-block-template',
+        data: function () {
+            return {
+                dialog: false,
+                step: 0,
+                vals_: Object.values(this.$root.copy(this.vals)),
+                keys_: Object.keys(this.$root.copy(this.vals)),
+                keys_show_: [],
+                resourceChoice: null,
+                providerChoice: null,
+                new_key: '',
+                new_val: Object.values(this.$root.copy(this.vals))[0],
+                resources: ['collection', 'process', 'stac-collection']
+                }
+        },
+        watch: {
+            providerChoice: function(c){
+                this.new_val = Object.keys(this.vals).includes(c) ? this.vals[c]: this.new_val
+            },
+            resourceChoice: function(re){
+                if (!this.resources.includes(re)){
+                    this.resourceChoice = null
+                } else {
+                    var ks = new Set()
+                    for (var i = 0; i < this.keys_.length; i++){
+                        if (this.vals_[i]['type'] === this.resourceChoice){
+                            ks.add(this.keys_[i])
+                        }
+                    }
+                    this.keys_show_ = [...ks.values()]
+                }
+            }
+        },
+        methods: {
+            saved: function() {
+                if (this.new_key){
+                    this.config[this.new_key] = this.$root.copy(this.new_val)
+                    this.new_key = ''
+                    this.resourceChoice = null
+                    this.providerChoice = null
+                    this.step = 0
+                    this.closed()
+                }
+            },
+            length: function(obj){
+                return Object.keys(obj).length
+            },
+            closed: function() {
+                this.dialog = false
+            },
+            _key: function(k){
+                return this.$vnode.key + '.' + k
+            },
+            capitalize: function(input, len){
+                if (typeof input === 'string'){
+                    return this.$root.capitalize(input,len)
+                } else {
+                    var parent = this._key(input).match(/([a-z])+/g).pop()
+                    return this.capitalize(parent,1) + ' [' + input + ']'
+                }
+            },
+        },
+    })
+</script>
+
+<script type="text/x-template" id="add-block-template">
+    <div class="add-block">
+        <v-row justify="center" >
+            <v-dialog v-model="dialog" width="75%">
+
+                <template v-slot:activator="{ on, attrs }">
+                    <v-col>
+                    <v-btn class="mx-2" depressed rounded v-bind="attrs" v-on="on" > <v-icon>mdi-plus</v-icon> Add Resource </v-btn>
+                    </v-col>
+                </template>
+
+                <v-card max-height="600px">
+                    <v-toolbar>
+                        <v-toolbar-items>
+                            <v-btn @click="dialog = false"><v-icon>mdi-close</v-icon></v-btn>
+                        </v-toolbar-items>
+                    </v-toolbar>
+                    <v-card >
+                        <v-stepper v-model="step">
+                            <v-sheet color="#959fb3">
+                                <v-stepper-header>
+                                    <v-slide-group center-active>
+                                        <v-stepper-step
+                                            key="0-step"
+                                            :complete="step > 0"
+                                            step="0"
+                                        >
+                                            <h5>Resource Name</h5>
+                                        </v-stepper-step>
+                                
+                                        <v-divider></v-divider>
+                                        <template v-for="(v,k,i) in new_val">
+                                            <template v-if="i != 0">
+                                                <v-stepper-step
+                                                    :key="`${k}-step`"
+                                                    :complete="step > i"
+                                                    :step="i"
+                                                >
+                                                    <h5 v-html="$root.capitalize(k,1)"></h5>
+                                                </v-stepper-step>
+                                    
+                                                <v-divider v-if="i !== length(new_val)" :key="i"></v-divider>
+                                            </template>
+                                        </template>
+                                    </v-slide-group>
+                                </v-stepper-header>
+                            </v-sheet>
+                            <v-stepper-items>
+                                <v-stepper-content step="0">
+                                    <v-divider></v-divider>
+                                    <v-row justify="center">
+                                        <v-col cols="12" md="4">
+                                        <v-textarea
+                                            v-model.trim="new_key" label="Resource Name" rows="1" reverse no-resize
+                                        ></v-textarea>
+                                        </v-col>
+                                        <v-col cols="12" md="4">
+                                            <v-autocomplete
+                                                v-model="resourceChoice" :items="resources" hint="Resource Type" auto-select-first reverse persistent-hint
+                                            ></v-autocomplete>
+                                            </v-col>
+                                        <v-col cols="12" md="4">
+                                            <v-autocomplete :disabled="resourceChoice === null"
+                                                v-model="providerChoice" :items="keys_show_" hint="Provider Type" reverse persistent-hint
+                                            ></v-autocomplete>
+                                        </v-col>
+                                    </v-row>
+                                </v-stepper-content>
+                                <template v-for="(v,k,i) in new_val">
+                                    <v-stepper-content
+                                    v-if="i != 0"
+                                    :key="`${k}-content`"
+                                    :step="i"
+                                    >
+                                        <gui-block :vals="v" :label="k" :key="_key(k)"></gui-block>
+                                    </v-stepper-content>
+                                </template>
+                            </v-stepper-items>
+                        </v-stepper>
+                       
+                       
+                        </v-card>
+                        <v-card-actions>
+                            <v-row>
+                                <v-col class="shrink">
+                                    <v-btn :disabled="step === 0" @click="step -= 1"> Previous </v-btn>
+                                </v-col>
+                                <v-col class="grow"> <span></span> </v-col>
+                                <v-col class="shrink">
+                                    <v-btn v-show="(step + 1) !== length(new_val)" :disabled="providerChoice === null" @click="step += 1"> Next </v-btn>
+                                </v-col>
+                                <v-col class="shrink">
+                                    <v-btn v-show="(step + 1) === length(new_val)" @click="saved"> Save </v-btn>
+                                </v-col>
+                            </v-row>
+                        </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </v-row>
+    </div>
+</script>

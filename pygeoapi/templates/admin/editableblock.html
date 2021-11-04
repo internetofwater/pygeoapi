@@ -1,0 +1,317 @@
+<script> 
+    Vue.component('EditableBlock', {
+      props: ['vals', 'label'],
+      name: 'EditableBlock',
+      template: '#editable-block',
+      data: function () {
+        return {
+          vals_: Object.values(this.vals),
+          keys_: Object.keys(this.vals),
+          dialog: false,
+          file: null,
+          alert: false,
+          al: {
+            msg: '',
+            path: '',
+            status: 'success'
+          },
+        }
+      },
+      methods: {
+        saved: function() {
+            for (const [k, v] of Object.entries(this.vals)){
+                if (!this.keys_.includes(k)){ delete this.vals[k] }
+            }
+            for (var i = 0; i < this.keys_.length; i++){
+                var [k, v] = [this.keys_[i], this.vals_[i]]
+                if (k === 'languages' ){
+                    this.vals[k] = [...v.match(/([a-z]{2}-[A-Z]{2})/g)]
+                } else if (k === 'bbox' && typeof v === 'string'){
+                    this.vals[k] = [...v.match(/(-?[\d]+)/g)]
+                } else if ((this._key(k).includes('.keywords.') || k === 'properties') && typeof v === 'string'){
+                    this.vals[k] = [...v.match(/[^, ]+/g)] 
+                } else {
+                    this.vals[k] = v
+                }
+            }
+        },
+        closed: function() {
+            this.dialog = false
+        },
+        _key: function(k){
+            return this.$vnode.key + '.' + k
+        },
+        capitalize: function(input, len){
+            if (typeof input === 'string'){
+                return this.$root.capitalize(input,len)
+            } else {
+                var parent = this._key(input).match(/([a-z])+/g).pop()
+                return this.capitalize(parent,1) + ' [' + input + ']'
+            }
+        },
+        removeRow: function(i){
+            this.vals_.splice(i,1)
+            this.keys_.splice(i,1)
+            this.saved()
+        },
+        addRow: function(){
+            this.vals_.push('')
+            this.keys_.push(' ')
+            this.saved()
+        },
+        send: function(d, path){
+          var self = this;
+          var formData = new FormData();
+          formData.append('file', this.file);
+          formData.append('name', d);
+          return axios.post(path, 
+                           data=formData, 
+                           { 
+                             withCredentials: true,
+                             headers: {
+                                'Content-Type': 'multipart/form-data'
+                            }
+            })
+            .then(function(response) {
+              var data = response.data
+              self.vals_[self.keys_.indexOf('data')] = data.path
+              self.al.msg = data.msg
+              self.al.path = 'File created at ' + data.path
+              self.al.status = 'success'
+              self.alert = true
+            })
+            .catch(function(error) {
+              console.log(error)
+              var err = error.response.data
+              self.al.msg = err.msg
+              self.al.path = 'Error ' + err.path
+              self.al.status = 'error'
+              self.alert = true
+              return Promise.reject(error);
+            })
+            .then(function () {
+                self.saved()
+            // always executed
+            })
+          ;
+        },
+      },
+      watch: {
+        dialog: function() {
+            var i = 0
+            for (const [k, v] of Object.entries(this.vals)){
+                this.vals_[i] = ['languages'].includes(k) ? v.toString() : v
+                i ++
+            }
+        },
+        vals: function(){
+            this.vals_ = Object.values(this.vals)
+            this.keys_ = Object.keys(this.vals)
+        }
+      },
+      computed: {
+          hints: function() {
+              return {
+                'tree.server.bind.host': 'Server listening address',
+                'tree.server.bind.port': 'Server listening port',
+                'tree.server.url': 'Server hostname',
+                'tree.server.mimetype': 'default: application/json; charset=UTF-8',
+                'tree.server.encoding': 'default: UTF-8',
+                'tree.server.languages': 'Server locale languages',
+                'tree.server.cors': 'Cross origin request support',
+                'tree.server.pretty_print': 'JSON pretty print',
+                'tree.server.limit': 'Default # of items returned',
+                'tree.server.templates.path': 'Path to HTML templates',
+                'tree.server.templates.static': 'Path to static folder',
+                'tree.server.map.url': 'Map URL',
+                'tree.server.map.attribution': 'html-like map attribution',
+                'tree.server.manager.name': 'Processes manager name',
+                'tree.server.manager.connection': 'Connection to stored jobs',
+                'tree.server.manager.output_dir': 'Output Directory',
+                'tree.server.manager.ogc_schemas_location': 'JSON-LD Schema folder',
+
+                'tree.logging.level': 'Server logging level',
+                'tree.logging.logfile': 'Server logfile path',
+
+                'tree.metadata.identification.keywords_type': 'Keyword type (ISO 19115)',
+                'tree.metadata.identification.terms_of_service': 'Service licensing',
+                'tree.metadata.identification.url': 'Provider URL',
+                'tree.metadata.license.name': 'License name',
+                'tree.metadata.license.url': 'License URL',
+                'tree.metadata.provider.name': 'Organization Name',
+                'tree.metadata.provider.url': 'Organization URL',
+                'tree.metadata.contact.name': 'Contact Name',
+                'tree.metadata.contact.address': 'Mailing Address',
+                'tree.metadata.contact.city': '',
+                'tree.metadata.contact.stateorprovince': 'Name of state or province',
+                'tree.metadata.contact.postalcode': 'Zip or Postal Code',
+                'tree.metadata.contact.country': 'Country',
+                'tree.metadata.contact.phone': '+xx-xxx-xxx-xxxx',
+                'tree.metadata.contact.fax': '+xx-xxx-xxx-xxxx',
+                'tree.metadata.contact.email': 'Contact email',
+                'tree.metadata.contact.url': 'Contact URL',
+                'tree.metadata.contact.hours': 'Availible hours', 
+                'tree.metadata.contact.instructions': 'Availibility instructions',
+                'tree.metadata.contact.role': 'Point of contact', 
+              }
+          },
+          opts: function() {
+              return {
+                'tree.server.limit': [5,10,25,50,100,250,500,1000],
+                'tree.logging.level': ['NOTSET','DEBUG','INFO','WARNING','ERROR','CRITICAL'],
+                'tree.metadata.identification.keywords_type': ['discipline','temporal','place','theme','stratum'],
+                'provider.type': ['feature', 'coverage', 'record', 'tile', 'edr'],
+                'resource.type': ['collection', 'process', 'stac-collection'],
+              }
+          },
+          form: function() {
+              return {
+                'gui': ['map','bind','templates','manager','context','links','extents','providers','geometry','title','description','keywords','data'],
+                'small': ['encoding', 'output_dir', 'position', 'city', 'stateorprovince', 'postalcode', 'country', 'phone', 'fax', 'email', 'languages', 'cors', 'pretty_print'],
+              }
+          },
+      },
+    })
+</script>
+
+<script type="text/x-template" id="editable-block">
+    <div class="editable-block">
+        <v-row justify="center" >
+            <v-dialog v-model="dialog" width="60%" height=70%>
+
+
+
+                <template v-slot:activator="{ on, attrs }">
+                    <v-btn large block depressed v-bind="attrs" v-on="on">  
+                     <v-icon>mdi-pencil</v-icon> Edit
+                    </v-btn>
+                </template>
+                
+                <v-card>
+                    <v-toolbar>
+                    <v-btn icon @click="closed"> <v-icon>mdi-close</v-icon> </v-btn>
+                    <v-toolbar-title> <span v-html="capitalize(label,1)"></span> </v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-toolbar-items> <v-btn @click="saved"><v-icon>mdi-content-save</v-icon> </v-btn> </v-toolbar-items>
+                    </v-toolbar>
+
+                    <v-alert v-model="alert" prominent outlined close-text="Close Alert" :type="al.status" dismissable>
+                        <v-row align-center>
+                          <v-col class="grow">
+                            <strong><span v-html="al.path"></span></strong><br><strong><span v-html="al.msg"></span></strong>
+                          </v-col>
+                          <v-col class="shrink">
+                            <v-btn icon fab depressed right @click="alert = false"> <v-icon>mdi-close</v-icon> </v-btn>
+                          </v-col>
+                        </v-row>
+                      </v-alert>
+
+                    <v-container>
+                        <v-row> 
+<template v-for="(v,k,i) in vals">
+    <template v-if="!k"></template>
+
+    <v-col v-else-if="form.gui.includes(k) && typeof(v) === 'object'"
+     cols="12">   
+        <span v-html="$root.capitalize(k,1)"></span>
+        <gui-block :vals="v" :label="k" :key="_key(k)"></gui-block>
+    </v-col>
+
+    <v-col v-else-if="form.small.includes(k)"
+     cols="12" sm="6" md="3">
+        <v-checkbox v-if="['cors', 'pretty_print'].includes(k)"
+            v-model="vals_[i]" :label="capitalize(k,1)" :hint="hints[_key(k)]" persistent-hint
+        ></v-checkbox>
+        <v-autocomplete v-else-if="k === 'keywords_type'"
+            v-model="vals_[i]" :items="opts[_key(k)]" :hint="hints[_key(k)]" auto-select-first reverse persistent-hint
+        ></v-autocomplete>
+        <v-textarea v-else
+            v-model="vals_[i]" :label="capitalize(k,1)" :hint="hints[_key(k)]" rows="1" reverse auto-grow 
+        ></v-textarea>
+    </v-col>
+
+    <v-col v-else-if="['limit', 'level'].includes(k)" 
+     cols="12" md="6">
+        <v-combobox
+            v-model="vals_[i]" :items="opts[_key(k)]" :label="capitalize(k,1)" :hint="hints[_key(k)]" auto-select-first reverse persistent-hint
+        ></v-combobox>
+    </v-col>
+
+    <v-col v-else-if="k === 'port'" 
+    cols="12" md="6">
+       <v-textarea
+           v-model.number="vals_[i]" :label="capitalize(k,1)" :hint="hints[_key(k)]" rows="1" reverse no-resize
+       ></v-textarea>
+   </v-col>
+
+    <v-col v-else-if="['url', 'attribution', 'ogc_schemas_location', 'href', 'crs', 'properties', 'file_types'].includes(k)" 
+    cols="12">
+       <v-textarea 
+           v-model="vals_[i]" :label="capitalize(k, 1)" :hint="hints[_key(k)]" rows="1" reverse auto-grow 
+       ></v-textarea>
+   </v-col> 
+
+    <v-col v-else-if="k === 'type'" 
+     cols="12" md="6">
+        <v-autocomplete v-if="$vnode.key.includes('provider')"
+            v-model="vals_[i]" :items="opts['provider.type']" hint="Provider type" auto-select-first reverse persistent-hint
+        ></v-autocomplete>
+        <v-textarea v-else-if="$vnode.key.includes('links')"
+            v-model="vals_[i]" reverse auto-grow rows="1" label="Mimetype"
+        ></v-textarea>
+        <v-autocomplete v-else
+            v-model="vals_[i]" :items="opts['resource.type']" hint="Resource type" auto-select-first reverse persistent-hint
+        ></v-autocomplete>
+    </v-col>
+
+    <v-col v-else-if="_key(k).includes('title') || _key(k).includes('description') || _key(k).includes('keywords')"
+     cols="12" md="6">
+        <v-textarea 
+            v-model.trim="vals_[i]" reverse auto-grow  rows="1" :label="capitalize(k,1)"
+        ></v-textarea>
+    </v-col>
+
+    <template v-else-if="_key(k).includes('context')">
+        <v-col cols="4">
+            <v-textarea v-model.trim="keys_[i]" reverse auto-grow rows="1" hint="Key" persistent-hint></v-textarea>
+        </v-col>
+        <v-col cols="6">
+            <v-textarea v-model="vals_[i]" reverse auto-grow rows="1" hint="Value" persistent-hint></v-textarea>
+        </v-col>
+        <v-btn depressed @click.stop="removeRow(i)"><v-icon>mdi-close</v-icon></v-btn>
+    </template>
+
+    
+    <v-card v-else-if="/(providers.[\d]*.data)/g.test(_key(k))" width=100%>
+        <v-row justify-center width="80%">
+        <v-col cols="10" md="6">
+            <v-textarea v-model="vals_[i]" reverse auto-grow rows="1" label="Data" hint="Path to data or URL"></v-textarea>
+        </v-col>
+        <v-col cols="10" md="6">
+            <v-file-input v-model="file" label="File"></v-file-input>
+        </v-col>
+        </v-row>
+        <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn @click="send(vals_[i],'/admin/datadump')">Upload</v-btn>
+            <v-spacer></v-spacer>
+        </v-card-actions>
+    </v-card>
+
+    <v-col v-else cols="12" md="6">
+        <v-textarea
+            v-model="vals_[i]" :label="capitalize(k,1)" :hint="hints[_key(k)]" rows="1" reverse auto-grow
+        ></v-textarea>
+    </v-col>
+</template>
+                        </v-row> 
+                        <v-row v-if="$vnode.key.includes('context')">
+                            <v-spacer></v-spacer>
+                            <v-btn depressed :disabled="keys_.includes('new key')" @click.stop="addRow"><v-icon>mdi-plus</v-icon></v-btn>
+                        </v-row>
+                    </v-container>
+                </v-card>
+            </v-dialog>
+        </v-row>
+    </div>
+</script>

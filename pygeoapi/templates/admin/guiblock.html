@@ -1,0 +1,99 @@
+<script>
+  Vue.component('GuiBlock', {
+    props: ['label', 'vals', 'depth'],
+    name: 'GuiBlock',
+    template: '#gui-block-template',
+    data: function () {
+      return {
+        dialog: this.$root.dialog,
+        label_: this.label,
+        key_: this.$vnode.key,
+        vals_: this.vals,
+        depth_: this.depth ? this.depth : 0,
+      }
+    },
+    computed: {
+      editable: function(){
+        if ( !this.vals || !typeof this.vals === 'object' ){
+          return false
+        }
+        for (const [k, v] of Object.entries(this.vals)){
+          if (typeof(v) !== 'object' || v === null){
+            return true
+          }
+        }
+        return false
+      },
+    },
+    watch: {
+      vals: function(val){
+        this.vals_ = this.$root.copy(val)
+      },
+    },
+    methods: {
+      additem: function(){
+        var item = this.$root.copy(this.vals).pop()
+        for (const [key, value] of Object.entries(item)) {
+          item[key] = ''
+        }
+        this.vals.push(this.$vnode.key.includes('context') ? {' ':''} : item)
+      },
+    },
+  })
+
+</script>
+
+<script type="text/x-template" id="gui-block-template">
+    <div class="gui-block">
+    
+      <template v-if="typeof(vals_) === 'string' || typeof(vals_) === 'number' || typeof(vals_) === 'boolean' || vals === null">
+        <span v-html="vals_"></span>
+      </template>
+
+      <template v-else>
+        <v-hover>
+          <template v-slot:default="{ hover }">
+            <v-container>
+                <v-card class="mb-auto" width="100%">
+                  <v-card-text>
+                    <table class="striped">
+                        <tr v-for="(v, k) in vals" :key="k">
+                          
+                          <td text-align="center">
+                            <v-row v-if="typeof(k) === 'string'"  no-gutters justify-center>
+                              <h4 v-html="$root.capitalize(k,1)"></h4>
+                            </v-row>
+                            <v-row  class="fill-height" justify="center">
+                              <v-col height="100%" 
+                              cols="12"
+                              >
+                                <gui-block :key="key_ + '.' + k" :label="k" :vals="v" :depth="depth_ + 1"></gui-block>
+                              </v-col>
+                            </v-row>
+                          </td>
+                         
+                        </tr>
+
+                    </table>
+                    
+                  </v-card-text>
+                  <editable-block v-if="( !vals.length && editable) || label === 'keywords'" v-show="hover" :vals="vals" :label="label" :key="key_"></editable-block>
+                    <v-card-actions>
+                      <template v-if="!editable && $root.islist(vals)">
+                        <v-btn v-show="hover" large depressed @click.stop="additem">
+                          <v-icon>mdi-plus</v-icon> <span v-html="'Add '+label.slice(0,-1)"></span>
+                        </v-btn>
+                        <v-spacer></v-spacer>
+                        <v-btn v-show="hover" large depressed @click.stop="vals.pop()" :disabled="(vals.length === 1)">
+                          <v-icon>mdi-minus</v-icon> <span v-html="'Remove last '+label.slice(0,-1)"></span>
+                        </v-btn>
+                      </template> 
+                    </v-card-actions>
+                  </v-card>
+
+            </v-container>
+          </template>
+        </v-hover>
+      </template>
+    </div>
+</script>

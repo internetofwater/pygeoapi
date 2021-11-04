@@ -1,0 +1,47 @@
+<script>
+    Vue.component('DialogBlock', {
+        props: ['vals', 'label'],
+        name: 'DialogBlock',
+        template: '#dialog-block-template',
+        data: function() {
+            return {
+                vals_: this.vals,
+                label_: this.label,
+                dialog: false,
+            }
+        },
+        watch: {
+            vals: function(val){
+                this.vals_ = this.$root.copy(val)
+            },
+        },
+    })
+</script>
+
+<script type="text/x-template" id="dialog-block-template">
+    <div class="dialog-block">
+        <v-row justify="center">
+            <v-dialog v-model="dialog">
+                <template v-slot:activator="{ on, attrs }">
+                    <v-btn fab small block outlined raised rounded v-bind="attrs" v-on="on">
+                     <v-icon>mdi-open-in-new</v-icon> <span v-html="label"></span> 
+                    </v-btn>
+                </template>
+                <v-card>
+                    <v-toolbar>
+                        <v-btn icon @click="dialog = false">
+                            <v-icon>mdi-close</v-icon>
+                        </v-btn>
+                        <v-toolbar-title>
+                            <span v-html="$root.capitalize(label_,1)"></span> 
+                        </v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        </v-toolbar>
+                    <v-card-text> 
+                        <gui-block :vals="vals_" :label="label_" :key="$vnode.key"></gui-block>
+                    </v-card-text>
+                </v-card>
+            </v-dialog>
+        </v-row>
+    </div>
+</script>

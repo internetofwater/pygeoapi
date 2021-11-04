@@ -38,6 +38,7 @@ from flask import Flask, Blueprint, make_response, request, send_from_directory
 
 from pygeoapi.api import API
 from pygeoapi.util import get_mimetype, yaml_load
+from pygeoapi.flask_admin import ADMIN_BLUEPRINT
 
 
 CONFIG = None
@@ -405,6 +406,8 @@ def stac_catalog_path(path):
 
 
 APP.register_blueprint(BLUEPRINT)
+if CONFIG['server'].get('admin'):
+    APP.register_blueprint(ADMIN_BLUEPRINT)
 
 
 @click.command()

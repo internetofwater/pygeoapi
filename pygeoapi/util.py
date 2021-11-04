@@ -53,6 +53,7 @@ import yaml
 from pygeoapi import __version__
 from pygeoapi import l10n
 from pygeoapi.provider.base import ProviderTypeError
+from flask_login import current_user
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,8 +81,10 @@ def dategetter(date_property, collection):
 
     if value is None:
         return None
-
-    return value.isoformat()
+    elif isinstance(value, str):
+        return format_datetime(value)
+    else:
+        return value.isoformat()
 
 
 def get_typed_value(value):
@@ -350,6 +353,9 @@ def render_j2_template(config, template, data, locale_=None):
 
     translations = Translations.load('locale', [locale_])
     env.install_gettext_translations(translations)
+
+    env.filters['current_user'] = current_user
+    env.globals.update(current_user=current_user)
 
     try:
         template = env.get_template(template)
