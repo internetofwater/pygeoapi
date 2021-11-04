@@ -1,7 +1,4 @@
-FROM geopython/pygeoapi:latest
+FROM internetofwater/pygeoapi:latest
 
-COPY ./ext_data /ext_data
-COPY ./sparql.py /pygeoapi/pygeoapi/provider/sparql.py
-COPY ./plugin.py /pygeoapi/pygeoapi/plugin.py
+ADD ./ext_data.zip /ext_data
 COPY ./sparql.pygeoapi.config.yml /pygeoapi/local.config.yml
-RUN ["python3", "-m", "pip", "install", "SPARQLWrapper"]
