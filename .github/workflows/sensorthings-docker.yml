@@ -1,6 +1,9 @@
-name: pygeoapi-sensorthings build
+name: internetofwater/pygeoapi:latest build
 
-on: [ push ]
+on:
+  push:
+    branches:
+      - 'master'
 
 jobs:
   docker:
@@ -27,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: webbben/pygeoapi-sensorthings:latest
+          tags: internetofwater/pygeoapi:latest
           context: .
       -
         name: Image digest
