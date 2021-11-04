@@ -300,7 +300,9 @@ def get_processes(process_id=None):
 def get_processes_map(process_id=None):
     """
     OGC API - Processes map endpoint
+
     :param process_id: process identifier
+
     :returns: HTTP response
     """
     return render_j2_template(CONFIG, 'processes/map.html',
