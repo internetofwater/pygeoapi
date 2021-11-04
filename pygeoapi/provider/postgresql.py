@@ -193,7 +193,8 @@ class PostgreSQLProvider(BaseProvider):
                 self.fields = db.fields
         return self.fields
 
-    def __get_where_clauses(self, properties=[], bbox=[]):
+    def __get_where_clauses(self, properties=[], bbox=[],
+                            comp='AND', **kwargs):
         """
         Generarates WHERE conditions to be implemented in query.
         Private method mainly associated with query method
@@ -216,7 +217,7 @@ class PostgreSQLProvider(BaseProvider):
 
         if where_conditions:
             where_clause = SQL(' WHERE {}').format(
-                SQL(' AND ').join(where_conditions))
+                SQL(f' {comp} ').join(where_conditions))
         else:
             where_clause = SQL('')
 
@@ -268,7 +269,7 @@ class PostgreSQLProvider(BaseProvider):
                 cursor = db.conn.cursor(cursor_factory=RealDictCursor)
 
                 where_clause = self.__get_where_clauses(
-                    properties=properties, bbox=bbox)
+                    properties=properties, bbox=bbox, **kwargs)
                 sql_query = SQL("SELECT COUNT(*) as hits from {} {}").\
                     format(Identifier(self.table), where_clause)
                 try:
@@ -290,18 +291,19 @@ class PostgreSQLProvider(BaseProvider):
             cursor = db.conn.cursor(cursor_factory=RealDictCursor)
 
             props = db.columns if select_properties == [] else \
-                SQL(', ').join([Identifier(p) for p in select_properties])
+                SQL(', ').join([Identifier(p) for p in
+                               (self.id_field, *select_properties)])
 
             geom = SQL('') if skip_geometry else \
                 SQL(",ST_AsGeoJSON({})").format(Identifier(self.geom))
 
             where_clause = self.__get_where_clauses(
-                properties=properties, bbox=bbox)
+                properties=properties, bbox=bbox, **kwargs)
 
             orderby = self._make_orderby(sortby) if sortby else SQL('')
 
             sql_query = SQL("DECLARE \"geo_cursor\" CURSOR FOR \
-             SELECT DISTINCT {} {} FROM {} {} {}").\
+             SELECT {} {} FROM {} {} {}").\
                 format(props,
                        geom,
                        Identifier(self.table),
@@ -324,6 +326,7 @@ class PostgreSQLProvider(BaseProvider):
 
             row_data = cursor.fetchall()
 
+            LOGGER.debug('Building Feature collection')
             feature_collection = {
                 'type': 'FeatureCollection',
                 'features': []
@@ -439,8 +442,8 @@ class PostgreSQLProvider(BaseProvider):
 
             feature['geometry'] = json.loads(geom) if geom is not None else None  # noqa
 
+            feature['id'] = rd.pop(self.id_field)
             feature['properties'] = rd
-            feature['id'] = feature['properties'].get(self.id_field)
 
             return feature
         else:

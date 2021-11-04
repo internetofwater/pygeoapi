@@ -58,6 +58,7 @@ PLUGINS = {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
     },
     'process': {
+        'RiverRunner': 'pygeoapi.process.river_runner.RiverRunnerProcessor',
         'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor'
     },
     'process_manager': {
