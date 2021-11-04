@@ -1,4 +1,4 @@
-FROM internetofwater/pygeoapi:latest
+FROM test
 
-ADD ./ext_data.zip /ext_data
+ADD ext_data /ext_data/
 COPY ./sparql.pygeoapi.config.yml /pygeoapi/local.config.yml

@@ -41,7 +41,7 @@ server:
     map:
         url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
         attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>'
-    ogc_schemas_location: /opt/schemas.opengis.net
+    # ogc_schemas_location: /opt/schemas.opengis.net
 
 logging:
     level: DEBUG

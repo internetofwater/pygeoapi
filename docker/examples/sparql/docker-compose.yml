@@ -37,5 +37,4 @@ services:
     ports:
       - "5000:80"
     volumes:
-      - ./ext_data:/ext_data
       - ./sparql.pygeoapi.config.yml:/pygeoapi/local.config.yml

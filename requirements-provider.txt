@@ -11,4 +11,3 @@ scipy
 xarray
 zarr
 elasticsearch-dsl
-SPARQLWrapper

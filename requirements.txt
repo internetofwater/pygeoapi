@@ -13,3 +13,4 @@ tinydb
 unicodecsv
 future-annotations
 pydantic
+SPARQLWrapper
