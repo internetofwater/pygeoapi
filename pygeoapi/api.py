@@ -93,7 +93,6 @@ FORMAT_TYPES = OrderedDict((
     (F_HTML, 'text/html'),
     (F_JSONLD, 'application/ld+json'),
     (F_JSON, 'application/json'),
-    (F_GZIP, 'application/gzip')
 ))
 
 #: Locale used for system responses (e.g. exceptions)
@@ -144,30 +143,6 @@ def pre_process(func):
             return func(cls, req_out, *args[2:])
         else:
             return func(cls, req_out)
-
-    return inner
-
-
-def gzip(func):
-    """
-    Decorator that compresses an outgoing Request instance.
-
-    :param func: decorated function
-
-    :returns: `func`
-    """
-
-    def inner(*args, **kwargs):
-        headers, status, content = func(*args, **kwargs)
-        if F_GZIP in headers.get('Content-Encoding', []):
-            try:
-                content = compress(content.encode('utf-8'))
-            except TypeError as err:
-                headers.pop('Content-Encoding')
-                LOGGER.error(f'Exception in compression: {err}')
-                LOGGER.error(f'Failted to compress: {headers}')
-
-        return headers, status, content
 
     return inner
 
