@@ -32,7 +32,7 @@ version: "3"
 services:
 
   pygeoapi:
-    image: webbben/pygeoapi-admin
+    image: internetofwater/pygeoapi:latest
 
     volumes:
       - ./admin.config.yml:/pygeoapi/local.config.yml

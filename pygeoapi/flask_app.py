@@ -406,7 +406,7 @@ def stac_catalog_path(path):
 
 
 APP.register_blueprint(BLUEPRINT)
-if CONFIG['server'].get('admin'):
+if CONFIG['server'].get('admin') is True:
     APP.register_blueprint(ADMIN_BLUEPRINT)
 
 

@@ -31,6 +31,7 @@ server:
     bind:
         host: localhost #change to your hostname if running your own instance
         port: 5000
+    admin: true
     url: http://localhost:5000 #change to host URL  if running your own instance
     mimetype: application/json; charset=UTF-8
     encoding: utf-8
@@ -45,7 +46,7 @@ server:
 
 logging:
     level: DEBUG
-    logfile: /tmp/pygeoapi.log
+    # logfile: /tmp/pygeoapi.log
 
 metadata:
     identification:
