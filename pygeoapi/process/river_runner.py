@@ -264,13 +264,13 @@ class RiverRunnerProcessor(BaseProcessor):
         """
         mimetype = 'application/json'
         outputs = {
-                'id': 'path',
-                'code': 'success',
-                'value': {
+            'id': 'path',
+            'code': 'success',
+            'value': {
                     'type': 'FeatureCollection',
                     'features': []
-                }
             }
+        }
 
         groupby = data.get('groupby', '')
         if groupby:
@@ -294,7 +294,7 @@ class RiverRunnerProcessor(BaseProcessor):
             url = url_join(
                 CONFIG_['server']['url'],
                 'processes/river-runner/execution'
-                )
+            )
             r = get(url, params={'id': f['id']})
             outputs['value'] = r.json().get('value')
 
@@ -325,11 +325,11 @@ class RiverRunnerProcessor(BaseProcessor):
         levelpaths = self._levelpaths(feature)
 
         d = p.query(
-                properties=[('levelpathi', i) for i in levelpaths],
-                sortby=order,
-                limit=10000,
-                comp='OR'
-                )
+            properties=[('levelpathi', i) for i in levelpaths],
+            sortby=order,
+            limit=10000,
+            comp='OR'
+        )
 
         LOGGER.debug('finding mins')
         mins = {level: {} for level in levelpaths}
