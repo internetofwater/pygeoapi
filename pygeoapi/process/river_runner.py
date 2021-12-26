@@ -196,6 +196,24 @@ PROCESS_DEF.update({
             'minOccurs': 0,
             'maxOccurs': 1,
             'metadata': None,  # TODO how to use?
+        },
+        'properties': {
+            'title': {
+                'en': 'Properties'
+            },
+            'description': {
+                'en': 'Properties to retain'
+            },
+            'keywords': {
+                'en': ['properties', 'property', 'select']
+            },
+            'schema': {
+                'type': ['string', 'list'],
+                'default': None
+            },
+            'minOccurs': 0,
+            'maxOccurs': 1,
+            'metadata': None,  # TODO how to use?
         }
     },
     'outputs': {
@@ -282,7 +300,13 @@ class RiverRunnerProcessor(BaseProcessor):
 
         if groupby:
             outputs['value'] = self._group_by(outputs['value'], groupby)
-
+        
+        if data.get('properties'):
+            p = data.get('properties').strip('[]').split(',')
+            for f in outputs['value']['features']:
+                f['properties'] = {
+                    k: f['properties'].get(k) for k in p
+                }
         return mimetype, outputs
 
     def _from_fid(self, fid, order):
