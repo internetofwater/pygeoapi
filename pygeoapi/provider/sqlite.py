@@ -95,8 +95,7 @@ class SQLiteGPKGProvider(BaseProvider):
 
         return self.fields
 
-    def __get_where_clauses(self, properties=[], bbox=[],
-                            comp='AND', **kwargs):
+    def __get_where_clauses(self, properties=[], bbox=[]):
         """
         Generarates WHERE conditions to be implemented in query.
         Private method mainly associated with query method.
@@ -116,7 +115,7 @@ class SQLiteGPKGProvider(BaseProvider):
             return where_clause, where_values
 
         if properties:
-            where_clause += f" {comp} ".join(
+            where_clause += " AND ".join(
                 ["{}=?".format(k) for k, v in properties])
             where_values += where_values + tuple((v for k, v in properties))
 
@@ -279,7 +278,7 @@ class SQLiteGPKGProvider(BaseProvider):
         LOGGER.debug('Querying SQLite/GPKG')
 
         where_clause, where_values = self.__get_where_clauses(
-            properties=properties, bbox=bbox, **kwargs)
+            properties=properties, bbox=bbox)
 
         if resulttype == 'hits':
 
