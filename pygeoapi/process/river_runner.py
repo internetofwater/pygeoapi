@@ -300,7 +300,7 @@ class RiverRunnerProcessor(BaseProcessor):
 
         if groupby:
             outputs['value'] = self._group_by(outputs['value'], groupby)
-        
+
         if data.get('properties'):
             p = data.get('properties').strip('[]').split(',')
             for f in outputs['value']['features']:
