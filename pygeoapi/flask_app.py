@@ -37,7 +37,7 @@ import click
 from flask import Flask, Blueprint, make_response, request, send_from_directory
 
 from pygeoapi.api import API
-from pygeoapi.util import get_mimetype, render_j2_template, yaml_load
+from pygeoapi.util import get_mimetype, yaml_load, render_j2_template
 
 
 CONFIG = None
@@ -374,7 +374,7 @@ def get_jobs(job_id=None):
             return get_response(api_.get_jobs(request, job_id))
 
 
-@BLUEPRINT.route('/processes/<process_id>/execution', methods=['GET', 'POST'])
+@BLUEPRINT.route('/processes/<process_id>/execution', methods=['POST'])
 def execute_process_jobs(process_id):
     """
     OGC API - Processes execution endpoint
@@ -383,9 +383,6 @@ def execute_process_jobs(process_id):
 
     :returns: HTTP response
     """
-    if request.method == 'GET':
-        from json import dumps
-        request.data = dumps({'inputs': request.args}).encode('UTF-8')
 
     return get_response(api_.execute_process(request, process_id))
 
