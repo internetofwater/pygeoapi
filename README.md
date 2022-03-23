@@ -1,4 +1,4 @@
-# pygeoapi - River Runner
+# pygeoapi
 
 [![Build Status](https://github.com/geopython/pygeoapi/workflows/build%20%E2%9A%99%EF%B8%8F/badge.svg)](https://github.com/geopython/pygeoapi/actions)
 <a href="https://json-ld.org"><img src="https://json-ld.org/images/json-ld-button-88.png" height="20"/></a>
