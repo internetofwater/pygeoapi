@@ -185,7 +185,7 @@ def test_query_select_properties(config):
     """Test query with selected properties"""
     psp = PostgreSQLProvider(config)
     props = psp.query(select_properties=['name'])
-    assert len(props['features'][0]['properties']) == 1
+    assert len(props['features'][0]['properties']) == 2
 
 
 def test_get(config):
