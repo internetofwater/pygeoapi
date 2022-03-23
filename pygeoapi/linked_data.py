@@ -65,47 +65,47 @@ def jsonldify(func):
         provider = meta.get('provider', {})
         ident = meta.get('identification', {})
         fcmld = {
-          "@context": "https://schema.org/docs/jsonldcontext.jsonld",
-          "@type": "DataCatalog",
-          "@id": cfg.get('server', {}).get('url', None),
-          "url": cfg.get('server', {}).get('url', None),
-          "name": l10n.translate(ident.get('title', None), locale_),
-          "description": l10n.translate(
-              ident.get('description', None), locale_),
-          "keywords": l10n.translate(
-              ident.get('keywords', None), locale_),
-          "termsOfService": l10n.translate(
-              ident.get('terms_of_service', None), locale_),
-          "license": meta.get('license', {}).get('url', None),
-          "provider": {
-            "@type": "Organization",
-            "name": l10n.translate(provider.get('name', None), locale_),
-            "url": provider.get('url', None),
-            "address": {
-                "@type": "PostalAddress",
-                "streetAddress": contact.get('address', None),
-                "postalCode": contact.get('postalcode', None),
-                "addressLocality": contact.get('city', None),
-                "addressRegion": contact.get('stateorprovince', None),
-                "addressCountry": contact.get('country', None)
-            },
-            "contactPoint": {
-                "@type": "Contactpoint",
-                "email": contact.get('email', None),
-                "telephone": contact.get('phone', None),
-                "faxNumber": contact.get('fax', None),
-                "url": contact.get('url', None),
-                "hoursAvailable": {
-                    "opens": contact.get('hours', None),
-                    "description": l10n.translate(
-                        contact.get('instructions', None), locale_)
+            "@context": "https://schema.org/docs/jsonldcontext.jsonld",
+            "@type": "DataCatalog",
+            "@id": cfg.get('server', {}).get('url', None),
+            "url": cfg.get('server', {}).get('url', None),
+            "name": l10n.translate(ident.get('title', None), locale_),
+            "description": l10n.translate(
+                ident.get('description', None), locale_),
+            "keywords": l10n.translate(
+                ident.get('keywords', None), locale_),
+            "termsOfService": l10n.translate(
+                ident.get('terms_of_service', None), locale_),
+            "license": meta.get('license', {}).get('url', None),
+            "provider": {
+                "@type": "Organization",
+                "name": l10n.translate(provider.get('name', None), locale_),
+                "url": provider.get('url', None),
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": contact.get('address', None),
+                    "postalCode": contact.get('postalcode', None),
+                    "addressLocality": contact.get('city', None),
+                    "addressRegion": contact.get('stateorprovince', None),
+                    "addressCountry": contact.get('country', None)
                 },
-                "contactType": l10n.translate(
-                    contact.get('role', None), locale_),
-                "description": l10n.translate(
-                    contact.get('position', None), locale_)
+                "contactPoint": {
+                    "@type": "Contactpoint",
+                    "email": contact.get('email', None),
+                    "telephone": contact.get('phone', None),
+                    "faxNumber": contact.get('fax', None),
+                    "url": contact.get('url', None),
+                    "hoursAvailable": {
+                        "opens": contact.get('hours', None),
+                        "description": l10n.translate(
+                            contact.get('instructions', None), locale_)
+                    },
+                    "contactType": l10n.translate(
+                        contact.get('role', None), locale_),
+                    "description": l10n.translate(
+                        contact.get('position', None), locale_)
+                }
             }
-          }
         }
         cls.fcmld = fcmld
         return func(cls, *args[1:], **kwargs)
@@ -188,16 +188,16 @@ def geojson2jsonld(config, data, dataset, identifier=None, id_field='id'):
         :returns: string of rendered JSON (GeoJSON-LD)
     """
     context = config['resources'][dataset].get('context', []).copy()
+
     defaultVocabulary = {
         'schema': 'https://schema.org/',
-        id_field: '@id',
         'type': '@type'
     }
 
     if identifier:
         # Single jsonld
         defaultVocabulary.update({
-            'geosparql': 'http://www.opengis.net/ont/geosparql#'
+            'gsp': 'http://www.opengis.net/ont/geosparql#'
         })
 
         # Expand properties block
@@ -206,7 +206,7 @@ def geojson2jsonld(config, data, dataset, identifier=None, id_field='id'):
         # Include multiple geometry encodings
         data['type'] = 'schema:Place'
         jsonldify_geometry(data)
-        data[id_field] = identifier
+        data['@id'] = identifier
 
     else:
         # Collection of jsonld
@@ -228,7 +228,7 @@ def geojson2jsonld(config, data, dataset, identifier=None, id_field='id'):
                     config['server']['url'], dataset, feature['id'])
 
             data['features'][i] = {
-                id_field: identifier,
+                '@id': identifier,
                 'type': 'schema:Place'
             }
 
@@ -262,9 +262,9 @@ def jsonldify_geometry(feature):
     feature['geometry'] = feature.pop('geometry')
 
     # Geosparql geometry
-    feature['geosparql:hasGeometry'] = {
+    feature['gsp:hasGeometry'] = {
         '@type': f'http://www.opengis.net/ont/sf#{geom.geom_type}',
-        'geosparql:asWKT': {
+        'gsp:asWKT': {
             '@type': 'http://www.opengis.net/ont/geosparql#wktLiteral',
             '@value': f'{geom.wkt}'
         }

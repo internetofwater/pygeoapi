@@ -1977,6 +1977,13 @@ class API:
                 self.config, content, dataset, uri, (p.uri_field or 'id')
             )
 
+            template = self.config['resources'][dataset].get('template')
+            if template:
+                # Render jsonld template
+                content = render_j2_template(
+                    self.config, template, content)
+                content = json.loads(content)
+
         return headers, 200, to_json(content, self.pretty_print)
 
     @pre_process
