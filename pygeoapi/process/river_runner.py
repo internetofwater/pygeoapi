@@ -295,7 +295,11 @@ class RiverRunnerProcessor(BaseProcessor):
                 CONFIG_['server']['url'],
                 'processes/river-runner/execution'
             )
-            r = get(url, params={'id': f['id']})
+            try:
+                r = get(url, params={'id': f['id']})
+            except:
+                _url = url.replace('localhost', 'host.docker.internal')
+                r = get(_url, params={'id': f['id']})
             outputs['value'] = r.json().get('value')
 
         if groupby:
