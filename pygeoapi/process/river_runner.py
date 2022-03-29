@@ -297,7 +297,7 @@ class RiverRunnerProcessor(BaseProcessor):
             )
             try:
                 r = get(url, params={'id': f['id']})
-            except:
+            except: # noqa
                 _url = url.replace('localhost', 'host.docker.internal')
                 r = get(_url, params={'id': f['id']})
             outputs['value'] = r.json().get('value')
