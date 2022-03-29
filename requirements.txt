@@ -1,7 +1,6 @@
 Babel
 click<8
 Flask
-Jinja2>=3.0.1
 jsonschema
 pyproj
 python-dateutil
