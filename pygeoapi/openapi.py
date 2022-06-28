@@ -346,6 +346,16 @@ def get_oas_30(cfg):
                 },
                 'style': 'form',
                 'explode': False
+            },
+            'vendorSpecificParameters': {
+                'name': 'vendorSpecificParameters',
+                'in': 'query',
+                'description': 'Additional "free-form" parameters that are not explicitly defined',  # noqa
+                'schema': {
+                    'type': 'object',
+                    'additionalProperties': True
+                },
+                'style': 'form'
             }
         },
         'schemas': {
@@ -482,6 +492,7 @@ def get_oas_30(cfg):
                         {'$ref': '{}#/components/parameters/bbox'.format(OPENAPI_YAML['oapif'])},  # noqa
                         {'$ref': '{}#/components/parameters/limit'.format(OPENAPI_YAML['oapif'])},  # noqa
                         coll_properties,
+                        {'$ref': '#/components/parameters/vendorSpecificParameters'},  # noqa
                         {'$ref': '#/components/parameters/skipGeometry'},
                         {'$ref': '{}/parameters/sortby.yaml'.format(OPENAPI_YAML['oapir'])},  # noqa
                         {'$ref': '#/components/parameters/offset'},
@@ -1065,7 +1076,9 @@ def openapi():
 @click.argument('config_file', type=click.File())
 @click.option('--format', '-f', 'format_', type=click.Choice(['json', 'yaml']),
               default='yaml', help='output format (json|yaml)')
-def generate(ctx, config_file, format_='yaml'):
+@click.option('--output-file', '-of', type=click.File('w', encoding='utf-8'),
+              help='Name of output file')
+def generate(ctx, config_file, output_file, format_='yaml'):
     """Generate OpenAPI Document"""
 
     if config_file is None:
@@ -1073,10 +1086,16 @@ def generate(ctx, config_file, format_='yaml'):
 
     s = yaml_load(config_file)
     pretty_print = s['server'].get('pretty_print', False)
+
     if format_ == 'yaml':
-        click.echo(yaml.safe_dump(get_oas(s), default_flow_style=False))
+        content = yaml.safe_dump(get_oas(s), default_flow_style=False)
     else:
-        click.echo(to_json(get_oas(s), pretty=pretty_print))
+        content = to_json(get_oas(s), pretty=pretty_print)
+
+    if output_file is None:
+        click.echo(content)
+    else:
+        output_file.write(content)
 
 
 @click.command()

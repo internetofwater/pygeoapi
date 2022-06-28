@@ -888,11 +888,12 @@ class API:
                 lnk = {
                     'type': link['type'],
                     'rel': link['rel'],
-                    'title': link['title'],
-                    'href': link['href']
+                    'title': l10n.translate(link['title'], request.locale),
+                    'href': l10n.translate(link['href'], request.locale),
                 }
                 if 'hreflang' in link:
-                    lnk['hreflang'] = link['hreflang']
+                    lnk['hreflang'] = l10n.translate(
+                        link['hreflang'], request.locale)
 
                 collection['links'].append(lnk)
 
@@ -1081,7 +1082,7 @@ class API:
 
                     for qt in p.get_query_types():
                         collection['links'].append({
-                            'type': 'text/json',
+                            'type': 'application/json',
                             'rel': 'data',
                             'title': '{} query for this collection as JSON'.format(qt),  # noqa
                             'href': '{}/{}/{}?f={}'.format(
@@ -1366,12 +1367,8 @@ class API:
 
         LOGGER.debug('processing property parameters')
         for k, v in request.params.items():
-            if k not in reserved_fieldnames and k not in p.fields.keys():
-                msg = 'unknown query parameter: {}'.format(k)
-                return self.get_exception(
-                    400, headers, request.format, 'InvalidParameterValue', msg)
-            elif k not in reserved_fieldnames and k in list(p.fields.keys()):
-                LOGGER.debug('Add property filter {}={}'.format(k, v))
+            if k not in reserved_fieldnames and k in list(p.fields.keys()):
+                LOGGER.debug('Adding property filter {}={}'.format(k, v))
                 properties.append((k, v))
 
         LOGGER.debug('processing sort parameter')
@@ -1543,9 +1540,10 @@ class API:
             if p.uri_field is not None:
                 content['uri_field'] = p.uri_field
             if p.title_field is not None:
-                content['title_field'] = p.title_field
-                content['id_field'] = p.title_field
-
+                content['title_field'] = l10n.translate(p.title_field,
+                                                        request.locale)
+                # If title exists, use it as id in html templates
+                content['id_field'] = content['title_field']
             content = render_j2_template(self.config,
                                          'collections/items/index.html',
                                          content, request.locale)
@@ -1964,7 +1962,8 @@ class API:
             if p.uri_field is not None:
                 content['uri_field'] = p.uri_field
             if p.title_field is not None:
-                content['title_field'] = p.title_field
+                content['title_field'] = l10n.translate(p.title_field,
+                                                        request.locale)
             content['collections_path'] = self.get_collections_url()
 
             content = render_j2_template(self.config,
