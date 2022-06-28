@@ -1540,9 +1540,10 @@ class API:
             if p.uri_field is not None:
                 content['uri_field'] = p.uri_field
             if p.title_field is not None:
-                content['title_field'] = p.title_field
-                content['id_field'] = p.title_field
-
+                content['title_field'] = l10n.translate(p.title_field,
+                                                        request.locale)
+                # If title exists, use it as id in html templates
+                content['id_field'] = content['title_field']
             content = render_j2_template(self.config,
                                          'collections/items/index.html',
                                          content, request.locale)
@@ -1961,7 +1962,8 @@ class API:
             if p.uri_field is not None:
                 content['uri_field'] = p.uri_field
             if p.title_field is not None:
-                content['title_field'] = p.title_field
+                content['title_field'] = l10n.translate(p.title_field,
+                                                        request.locale)
             content['collections_path'] = self.get_collections_url()
 
             content = render_j2_template(self.config,
