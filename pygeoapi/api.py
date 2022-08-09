@@ -602,7 +602,7 @@ class API:
         self.default_locale = self.locales[0]
 
         if 'templates' not in self.config['server']:
-            self.config['server']['templates'] = TEMPLATES
+            self.config['server']['templates'] = {'path': TEMPLATES}
 
         if 'pretty_print' not in self.config['server']:
             self.config['server']['pretty_print'] = False
@@ -844,6 +844,9 @@ class API:
 
         LOGGER.debug('Creating collections')
         for k, v in collections_dict.items():
+            if v.get('visibility', 'default') == 'hidden':
+                LOGGER.debug('Skipping hidden layer: {}'.format(k))
+                continue
             collection_data = get_provider_default(v['providers'])
             collection_data_type = collection_data['type']
 
@@ -1909,7 +1912,10 @@ class API:
             '{}/{}/items/{}'.format(
                 self.get_collections_url(), dataset, identifier)
 
-        content['links'] = [{
+        if 'links' not in content:
+            content['links'] = []
+
+        content['links'].extend([{
             'rel': request.get_linkrel(F_JSON),
             'type': 'application/geo+json',
             'title': 'This document as GeoJSON',
@@ -1931,7 +1937,7 @@ class API:
                                     request.locale),
             'href': '{}/{}'.format(
                 self.get_collections_url(), dataset)
-        }]
+        }])
 
         if 'prev' in content:
             content['links'].append({
