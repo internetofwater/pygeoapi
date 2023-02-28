@@ -37,7 +37,7 @@ import click
 from flask import Flask, Blueprint, make_response, request, send_from_directory
 
 from pygeoapi.api import API
-from pygeoapi.util import get_mimetype, yaml_load
+from pygeoapi.util import get_mimetype, render_j2_template, yaml_load
 
 
 CONFIG = None
@@ -340,6 +340,19 @@ def get_processes(process_id=None):
     return get_response(api_.describe_processes(request, process_id))
 
 
+@BLUEPRINT.route('/processes/<process_id>/map')
+def get_processes_map(process_id=None):
+    """
+    OGC API - Processes map endpoint
+
+    :param process_id: process identifier
+
+    :returns: HTTP response
+    """
+    return render_j2_template(CONFIG, 'processes/map.html',
+                              {**request.args}, 'en-US')
+
+
 @BLUEPRINT.route('/jobs')
 @BLUEPRINT.route('/jobs/<job_id>',
                  methods=['GET', 'DELETE'])
@@ -361,7 +374,7 @@ def get_jobs(job_id=None):
             return get_response(api_.get_jobs(request, job_id))
 
 
-@BLUEPRINT.route('/processes/<path:process_id>/execution', methods=['POST'])
+@BLUEPRINT.route('/processes/<process_id>/execution', methods=['GET', 'POST'])
 def execute_process_jobs(process_id):
     """
     OGC API - Processes execution endpoint
@@ -370,6 +383,9 @@ def execute_process_jobs(process_id):
 
     :returns: HTTP response
     """
+    if request.method == 'GET':
+        from json import dumps
+        request.data = dumps({'inputs': request.args}).encode('UTF-8')
 
     return get_response(api_.execute_process(request, process_id))
 
