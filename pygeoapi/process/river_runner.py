@@ -33,6 +33,8 @@ from requests import get
 from shapely.geometry.multilinestring import MultiLineString
 from shapely import speedups
 
+from pygeofilter.parsers.cql_json import parse as parse_cql_json
+
 from pygeoapi.util import yaml_load, url_join
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.base import BaseProcessor, ProcessorExecuteError
@@ -297,7 +299,7 @@ class RiverRunnerProcessor(BaseProcessor):
             )
             try:
                 r = get(url, params={'id': f['id']})
-            except: # noqa
+            except:  # noqa
                 _url = url.replace('localhost', 'host.docker.internal')
                 r = get(_url, params={'id': f['id']})
             outputs['value'] = r.json().get('value')
@@ -326,13 +328,20 @@ class RiverRunnerProcessor(BaseProcessor):
         feature = p.get(fid)
 
         LOGGER.debug('fetching downstream features')
+
         levelpaths = self._levelpaths(feature)
 
+        filter_ = parse_cql_json({
+            'in': {
+                'value': {'property': 'levelpathi'},
+                'list': levelpaths
+            }
+        })
+
         d = p.query(
-            properties=[('levelpathi', i) for i in levelpaths],
             sortby=order,
             limit=10000,
-            comp='OR'
+            filterq=filter_
         )
 
         LOGGER.debug('finding mins')
