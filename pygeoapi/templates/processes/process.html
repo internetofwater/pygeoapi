@@ -77,6 +77,7 @@
           <a title="Browse jobs" href="{{config.server.url}}/jobs">{% trans %}Browse jobs{% endtrans %}</a>
           <h2>{% trans %}Links{% endtrans %}</h2>
           <ul>
+            <li><a href="./{{ data['id'] }}/map">map (application/html)</a></li>
             {% for link in data['links'] %}
                 <li>
                   <a title={{link.title}} type={{link.type}} rel={{link.rel}} href={{link.href}} hreflang={{link.hreflang}}>
