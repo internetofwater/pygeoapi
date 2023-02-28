@@ -27,19 +27,23 @@
 #
 # =================================================================
 
-from requests import Session, codes
+from copy import deepcopy
+import json
 import logging
-from pygeoapi.provider.base import (BaseProvider, ProviderQueryError,
-                                    ProviderConnectionError)
-from json.decoder import JSONDecodeError
+from requests import Session, codes
+
+from pygeoapi.provider.base import (BaseProvider, ProviderConnectionError,
+                                    ProviderTypeError, ProviderQueryError)
 from pygeoapi.util import format_datetime
 
 LOGGER = logging.getLogger(__name__)
 
+ARCGIS_URL = 'https://www.arcgis.com'
+GENERATE_TOKEN_URL = 'https://www.arcgis.com/sharing/rest/generateToken'
+
 
 class ESRIServiceProvider(BaseProvider):
-    """ESRI Feature/Map Service Provider
-    """
+    """ESRI Feature/Map Service Provider"""
 
     def __init__(self, provider_def):
         """
@@ -50,60 +54,52 @@ class ESRIServiceProvider(BaseProvider):
 
         :returns: pygeoapi.provider.esri.ESRIServiceProvider
         """
-        LOGGER.debug("Logger ESRI Init")
+        LOGGER.debug('Logger ESRI Init')
 
         super().__init__(provider_def)
-        self._url = f'{self.data}/query'
-        self._token = ''
-        self._username = provider_def.get('username')
-        self._password = provider_def.get('password')
+
+        self.url = f'{self.data}/query'
+        self.crs = provider_def.get('crs', '4326')
+        self.username = provider_def.get('username')
+        self.password = provider_def.get('password')
+        self.token = None
+
+        self.session = Session()
+
+        self.login()
         self.get_fields()
-        self.numFeatures = self.query(
-            resulttype='hits').get('numberMatched')
 
     def get_fields(self):
         """
          Get fields of ESRI Provider
 
-        :returns: dict of fields
+        :returns: `dict` of fields
         """
 
         if not self.fields:
-            # Start session
-            s = Session()
-
-            # Generate token from username and password
-            if self._username and self._password and self._token == '':
-                params = {
-                    'f': 'pjson',
-                    'username': self._username,
-                    'password': self._password,
-                    'referer': 'http://www.arcgis.com/'
-                }
-
-                url = 'https://www.arcgis.com/sharing/rest/generateToken'
-                with s.post(url, data=params) as r:
-                    self._token = r.json().get('token', '')
-
             # Load fields
-            params = {
-                'f': 'pjson',
-                'token': self._token
-            }
-            try:
-                with s.get(self.data, params=params) as r:
-                    resp = r.json()
-            except JSONDecodeError as err:
-                LOGGER.error('Bad response at {}'.format(self.data))
-                raise ProviderQueryError(err)
+            params = {'f': 'pjson'}
+            resp = self.get_response(self.data, params=params)
 
-            # Verify Feature/Map Service supports required capabilities
-            advCapabilities = resp['advancedQueryCapabilities']
-            if advCapabilities['supportsPagination'] is False \
-                    or advCapabilities['supportsOrderBy'] is False \
-                    or 'geoJSON' not in resp['supportedQueryFormats']:
-                raise ProviderConnectionError(
-                    'Unsupported Feature/Map Server')
+            if resp.get('error') is not None:
+                msg = f"Connection error: {resp['error']['message']}"
+                LOGGER.error(msg)
+                raise ProviderConnectionError(msg)
+
+            try:
+                # Verify Feature/Map Service supports required capabilities
+                advCapabilities = resp['advancedQueryCapabilities']
+                assert advCapabilities['supportsPagination']
+                assert advCapabilities['supportsOrderBy']
+                assert 'geoJSON' in resp['supportedQueryFormats']
+            except KeyError:
+                msg = f'Could not access resource {self.data}'
+                LOGGER.error(msg)
+                raise ProviderConnectionError(msg)
+            except AssertionError as err:
+                msg = f'Unsupported Feature/Map Server: {err}'
+                LOGGER.error(msg)
+                raise ProviderTypeError(msg)
 
             for _ in resp['fields']:
                 self.fields.update({_['name']: {'type': _['type']}})
@@ -127,13 +123,45 @@ class ESRIServiceProvider(BaseProvider):
         :param skip_geometry: bool of whether to skip geometry (default False)
         :param q: full-text search term(s)
 
-        :returns: dict of GeoJSON FeatureCollection
+        :returns: `dict` of GeoJSON FeatureCollection
         """
 
-        return self._load(offset, limit, resulttype, bbox=bbox,
-                          datetime_=datetime_, properties=properties,
-                          sortby=sortby, select_properties=select_properties,
-                          skip_geometry=skip_geometry)
+        # Default feature collection and request parameters
+
+        params = {
+            'f': 'geoJSON',
+            'outSR': self.crs,
+            'outFields': self._make_fields(select_properties),
+            'where': self._make_where(properties, datetime_)
+            }
+
+        if bbox != []:
+            xmin, ymin, xmax, ymax = bbox
+            params['inSR'] = '4326'
+            params['geometryType'] = 'esriGeometryEnvelope'
+            params['geometry'] = f'{xmin},{ymin},{xmax},{ymax}'
+
+        fc = {
+            'type': 'FeatureCollection',
+            'features': [],
+            'numberMatched': self._get_count(params)
+        }
+
+        if resulttype == 'hits':
+            return fc
+
+        params['orderByFields'] = self._make_orderby(sortby)
+
+        params['returnGeometry'] = 'false' if skip_geometry else 'true'
+        params['resultOffset'] = offset
+        params['resultRecordCount'] = limit
+
+        hits_ = min(limit, fc['numberMatched'])
+        fc['features'] = self._get_all(params, hits_)
+
+        fc['numberReturned'] = len(fc['features'])
+
+        return fc
 
     def get(self, identifier, **kwargs):
         """
@@ -144,121 +172,55 @@ class ESRIServiceProvider(BaseProvider):
         :returns: dict of single GeoJSON feature
         """
 
-        return self._load(identifier=identifier)
-
-    def _load(self, offset=0, limit=10, resulttype='results',
-              identifier=None, bbox=[], datetime_=None, properties=[],
-              sortby=[], select_properties=[], skip_geometry=False, q=None):
-        """
-        Private function: Load ESRI data
-
-        :param offset: starting record to return (default 0)
-        :param limit: number of records to return (default 10)
-        :param resulttype: return results or hit limit (default results)
-        :param identifier: feature id (get collections item)
-        :param bbox: bounding box [minx,miny,maxx,maxy]
-        :param datetime_: temporal (datestamp or extent)
-        :param properties: list of tuples (name, value)
-        :param sortby: list of dicts (property, order)
-        :param select_properties: list of property names
-        :param skip_geometry: bool of whether to skip geometry (default False)
-        :param q: full-text search term(s)
-
-        :returns: dict of GeoJSON FeatureCollection
-        """
-
-        # Default feature collection and request parameters
-        fc = {
-            'type': 'FeatureCollection',
-            'features': []
-        }
+        LOGGER.debug(f'Fetching item: {identifier}')
         params = {
             'f': 'geoJSON',
-            'outSR': '4326',
-            'resultOffset': offset,
-            'resultRecordCount': limit,
-            'where': '1=1',
+            'outSR': self.crs,
+            'objectIds': identifier,
+            'outFields': self._make_fields()
         }
 
-        if not self.properties and not select_properties:
-            params['outFields'] = '*'
-        else:
-            params['outFields'] = set(self.properties) | set(select_properties)
+        resp = self.get_response(self.url, params=params)
+        LOGGER.debug('Returning item')
+        return resp['features'].pop()
 
-        if identifier:
-            # Add feature id to request params
-            params['objectIds'] = identifier
+    def login(self):
+        # Generate token from username and password
+        if self.token is None:
 
-        else:
-            # Add queryables to request params
-            if properties or datetime_:
-                params['where'] = self._make_where(properties, datetime_)
+            if None in [self.username, self.password]:
+                msg = 'Missing ESRI login information, not setting token'
+                LOGGER.debug(msg)
+                return
 
-            if bbox:
-                params['inSR'] = '4326'
-                params['geometryType'] = 'esriGeometryEnvelope'
-                xmin, ymin, xmax, ymax = bbox
-                params['geometry'] = f'{xmin},{ymin},{xmax},{ymax}'
+            params = {
+                'f': 'pjson',
+                'username': self.username,
+                'password': self.password,
+                'referer': ARCGIS_URL
+            }
 
-            if resulttype == 'hits':
-                params['returnCountOnly'] = 'true'
-                params['resultRecordCount'] = ''
+            LOGGER.debug('Logging in')
+            with self.session.post(GENERATE_TOKEN_URL, data=params) as r:
+                self.token = r.json().get('token')
+                # https://enterprise.arcgis.com/en/server/latest/administer/windows/about-arcgis-tokens.htm
+                self.session.headers.update({
+                    'X-Esri-Authorization': f'Bearer {self.token}'
+                })
 
-            if sortby:
-                params['orderByFields'] = self._make_orderby(sortby)
-
-            if skip_geometry:
-                params['returnGeometry'] = 'false'
-
-        # Add token to tail
-        params['token'] = self._token
-
-        # Start session
-        s = Session()
-
+    def get_response(self, url, **kwargs):
         # Form URL for GET request
         LOGGER.debug('Sending query')
-        with s.get(self._url, params=params) as r:
+        with self.session.get(url, **kwargs) as r:
 
             if r.status_code == codes.bad:
                 LOGGER.error('Bad http response code')
                 raise ProviderConnectionError('Bad http response code')
-
-            resp = r.json()
-
-        if identifier:
-            # Return single feature
-            fc = resp['features'].pop()
-
-        elif resulttype == 'hits':
-            # Return hits
-            LOGGER.debug('Returning hits')
-            hits = resp.get('count',
-                            resp.get('properties', {}).get('count', 0))
-            fc['numberMatched'] = hits
-
-        else:
-            # Return feature collection
-            v = resp.get('features')
-            step = len(v)
-            hits_ = min(limit, self.numFeatures)
-
-            # Query if values are less than expected
-            while len(v) < hits_:
-                LOGGER.debug('Fetching next set of values')
-                params['resultOffset'] += step
-                params['resultRecordCount'] += step
-                with s.get(self._url, params=params) as r:
-                    response = r.json()
-                    v.extend(response.get('features'))
-
-            fc['features'] = v
-            fc['numberReturned'] = len(v)
-
-        # End session
-        s.close()
-
-        return fc
+            try:
+                return r.json()
+            except json.decoder.JSONDecodeError as err:
+                LOGGER.error(f'Bad response at {self.url}')
+                raise ProviderQueryError(err)
 
     @staticmethod
     def _make_orderby(sortby):
@@ -269,26 +231,35 @@ class ESRIServiceProvider(BaseProvider):
 
         :returns: ESRI query `order` clause
         """
+        if sortby == []:
+            return None
+
         __ = {'+': 'ASC', '-': 'DESC'}
-        ret = [f"{_['property']} {__[_['order']]}" for _ in sortby]
+        ret = [f'{_["property"]} {__[_["order"]]}' for _ in sortby]
 
         return ','.join(ret)
 
-    @staticmethod
-    def esri_date(dt):
+    def _make_fields(self, select_properties=[]):
         """
-        Private function: Make ESRI filter from query properties
+        Make ESRI out fields clause
 
-        :param dt:  `str` of ISO datetime
+        :param select_properties: list of property names
 
-        :returns: ESRI query `order` clause
+        :returns: ESRI query `outFields` clause
         """
-        dt = format_datetime(dt).replace('T', ' ').replace('Z', '')
-        return f"DATE '{dt}'"
+        if self.properties == [] and select_properties == []:
+            return '*'
 
-    def _make_where(self, properties, datetime_=None):
+        if self.properties != [] and select_properties != []:
+            outFields = set(self.properties) & set(select_properties)
+        else:
+            outFields = set(self.properties) | set(select_properties)
+
+        return ','.join(outFields)
+
+    def _make_where(self, properties=[], datetime_=None):
         """
-        Private function: Make ESRI filter from query properties
+        Make ESRI filter from query properties
 
         :param properties: `list` of tuples (name, value)
         :param datetime_: `str` temporal (datestamp or extent)
@@ -296,9 +267,12 @@ class ESRIServiceProvider(BaseProvider):
         :returns: ESRI query `where` clause
         """
 
+        if properties == [] and datetime_ is None:
+            return '1 = 1'
+
         p = []
 
-        if properties:
+        if properties != []:
 
             for (k, v) in properties:
                 if 'String' in self.fields[k]['type']:
@@ -306,20 +280,71 @@ class ESRIServiceProvider(BaseProvider):
                 else:
                     p.append(f"{k} = {v}")
 
-        if datetime_:
+        if datetime_ is not None:
 
+            def esri_dt(dt):
+                dt_ = format_datetime(dt, '%Y-%m-%d %H:%M:%S')
+                return f"TIMESTAMP '{dt_}'"
+
+            tf = self.time_field
             if '/' in datetime_:
                 time_start, time_end = datetime_.split('/')
                 if time_start != '..':
-                    p.append(
-                        f"{self.time_field} >= {self.esri_date(time_start)}")
+                    p.append(f'{tf} >= {esri_dt(time_start)}')
                 if time_end != '..':
-                    p.append(
-                        f'{self.time_field} <= {self.esri_date(time_end)}')
+                    p.append(f'{tf} <= {esri_dt(time_end)}')
             else:
-                p.append(f'{self.time_field} = {self.esri_date(datetime_)}')
+                p.append(f'{tf} = {self.esri_date(datetime_)}')
 
         return ' AND '.join(p)
 
+    def _get_count(self, params):
+        """
+        Count number of features from query args
+
+        :param params: `dict` of query params
+
+        :returns: `int` of feature count
+        """
+        params = deepcopy(params)
+
+        params['returnCountOnly'] = 'true'
+        params['f'] = 'pjson'
+
+        response = self.get_response(self.url, params=params)
+        return response.get('count', 0)
+
+    def _get_all(self, params, hits_):
+        """
+        Get all features from query args
+
+        :param properties: `dict` of query params
+        :param hits_: `int` of number of features to expect
+
+        :returns: `list` of features
+        """
+        params = deepcopy(params)
+
+        # Return feature collection
+        features = self.get_response(self.url, params=params).get('features')
+        step = len(features)
+
+        # Query if values are less than expected
+        while len(features) < hits_:
+            LOGGER.debug('Fetching next set of values')
+            params['resultOffset'] += step
+            params['resultRecordCount'] += step
+
+            fs = self.get_response(self.url, params=params).get('features')
+            if len(fs) != 0:
+                features.extend(fs)
+            else:
+                break
+
+        return features
+
+    def __exit__(self, **kwargs):
+        self.session.close()
+
     def __repr__(self):
-        return '<ESRIProvider> {}'.format(self.data)
+        return f'<ESRIServiceProvider> {self.data}'
