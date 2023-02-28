@@ -48,7 +48,7 @@ import pygeoapi.api.stac as stac_api
 import pygeoapi.api.tiles as tiles_api
 from pygeoapi.openapi import load_openapi_document
 from pygeoapi.config import get_config
-from pygeoapi.util import get_mimetype, get_api_rules
+from pygeoapi.util import get_mimetype, get_api_rules, render_j2_template
 
 
 CONFIG = get_config()
@@ -418,6 +418,19 @@ def get_processes(process_id: str | None = None):
                               process_id)
 
 
+@BLUEPRINT.route('/processes/<process_id>/map')
+def get_processes_map(process_id=None):
+    """
+    OGC API - Processes map endpoint
+
+    :param process_id: process identifier
+
+    :returns: HTTP response
+    """
+    return render_j2_template(CONFIG, 'processes/map.html',
+                              {**request.args}, 'en-US')
+
+
 @BLUEPRINT.route('/jobs')
 @BLUEPRINT.route('/jobs/<job_id>',
                  methods=['GET', 'DELETE'])
@@ -449,6 +462,9 @@ def execute_process_jobs(process_id: str):
 
     :returns: HTTP response
     """
+    if request.method == 'GET':
+        from json import dumps
+        request.data = dumps({'inputs': request.args}).encode('UTF-8')
 
     return execute_from_flask(processes_api.execute_process, request,
                               process_id)
