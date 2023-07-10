@@ -39,6 +39,7 @@ LOGGER = logging.getLogger(__name__)
 PLUGINS = {
     'provider': {
         'AzureBlobStorage': 'pygeoapi.provider.azure_.AzureBlobStorageProvider',  # noqa
+        'CKAN': 'pygeoapi_plugins.provider.ckan.CKANProvider',
         'CSV': 'pygeoapi.provider.csv_.CSVProvider',
         'Elasticsearch': 'pygeoapi.provider.elasticsearch_.ElasticsearchProvider',  # noqa
         'ElasticsearchCatalogue': 'pygeoapi.provider.elasticsearch_.ElasticsearchCatalogueProvider',  # noqa
@@ -53,6 +54,7 @@ PLUGINS = {
         'OGR': 'pygeoapi.provider.ogr.OGRProvider',
         'PostgreSQL': 'pygeoapi.provider.postgresql.PostgreSQLProvider',
         'rasterio': 'pygeoapi.provider.rasterio_.RasterioProvider',
+        'SPARQL': 'pygeoapi_plugins.provider.sparql.SPARQLProvider',
         'SensorThings': 'pygeoapi.provider.sensorthings.SensorThingsProvider',
         'SQLiteGPKG': 'pygeoapi.provider.sqlite.SQLiteGPKGProvider',
         'Socrata': 'pygeoapi.provider.socrata.SODAServiceProvider',
@@ -65,7 +67,8 @@ PLUGINS = {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
     },
     'process': {
-        'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor'
+        'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor',
+        'Intersector': 'pygeoapi_plugins.process.intersect.IntersectionProcessor', # noqa
     },
     'process_manager': {
         'Dummy': 'pygeoapi.process.manager.dummy.DummyManager',

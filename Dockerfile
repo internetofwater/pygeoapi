@@ -121,6 +121,7 @@ RUN \
 
     # Install remaining pygeoapi deps
     && pip3 install -r requirements-docker.txt \
+    && pip3 install https://github.com/cgs-earth/pygeoapi-plugins/archive/refs/heads/master.zip \
 
     # Install pygeoapi
     && pip3 install -e . \
