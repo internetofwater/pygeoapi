@@ -117,6 +117,18 @@ RUN \
     && curl -O http://schemas.opengis.net/SCHEMAS_OPENGIS_NET.zip \
     && unzip ./SCHEMAS_OPENGIS_NET.zip "ogcapi/*" -d /schemas.opengis.net \
     && rm -f ./SCHEMAS_OPENGIS_NET.zip \
+
+    # Install remaining pygeoapi deps
+    && pip3 install -r requirements-docker.txt \
+    && pip3 install https://github.com/cgs-earth/pygeoapi-plugins/archive/refs/heads/master.zip \
+
+    # Install pygeoapi
+    && pip3 install -e . \
+
+    # Set default config and entrypoint for Docker Image
+    && cp /pygeoapi/docker/default.config.yml /pygeoapi/local.config.yml \
+    && cp /pygeoapi/docker/entrypoint.sh /entrypoint.sh  \
+
     # Cleanup TODO: remove unused Locales and TZs
     # NOTE: this tries to remove gcc, but the actual package gcc-11 can't be
     #       removed because python3-scipy depends on python3-pythran which
