@@ -58,6 +58,7 @@ PLUGINS = {
         'OGR': 'pygeoapi.provider.ogr.OGRProvider',
         'Parquet': 'pygeoapi.provider.parquet.ParquetProvider',
         'PostgreSQL': 'pygeoapi.provider.postgresql.PostgreSQLProvider',
+        'PsuedoPostgreSQL': 'pygeoapi_plugins.provider.postgresql.PseudoPostgreSQLProvider', # noqa
         'rasterio': 'pygeoapi.provider.rasterio_.RasterioProvider',
         'SPARQL': 'pygeoapi_plugins.provider.sparql.SPARQLProvider',
         'SensorThings': 'pygeoapi.provider.sensorthings.SensorThingsProvider',
