@@ -70,6 +70,7 @@ PLUGINS = {
     'process': {
         'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor',
         'Intersector': 'pygeoapi_plugins.process.intersect.IntersectionProcessor', # noqa
+        'SitemapGenerator': 'pygeoapi_plugins.process.sitemap.SitemapProcessor', # noqa
     },
     'process_manager': {
         'Dummy': 'pygeoapi.process.manager.dummy.DummyManager',
