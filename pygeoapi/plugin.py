@@ -77,6 +77,7 @@ PLUGINS = {
         'ShapelyFunctions': 'pygeoapi.process.shapely_functions.ShapelyFunctionsProcessor',  # noqa: E501
         'Echo': 'pygeoapi.process.echo.EchoProcessor',
         'Intersector': 'pygeoapi_plugins.process.intersect.IntersectionProcessor', # noqa
+        'SitemapGenerator': 'pygeoapi_plugins.process.sitemap.SitemapProcessor', # noqa
     },
     'process_manager': {
         'Dummy': 'pygeoapi.process.manager.dummy.DummyManager',

@@ -32,6 +32,7 @@ import io
 from json import loads
 import logging
 import os
+import xml.etree.ElementTree as ET
 
 from pygeoapi.provider.base import (BaseProvider, ProviderConnectionError,
                                     ProviderNotFoundError)
@@ -146,6 +147,11 @@ class FileSystemProvider(BaseProvider):
             content['type'] = 'Catalog'
             dirpath2 = os.listdir(data_path)
             dirpath2.sort()
+            try:
+                idx = dirpath2.index('sitemap.xml')
+                dirpath2.insert(0, dirpath2.pop(idx))
+            except ValueError:
+                LOGGER.debug('sitemap.xml not in dir')
             for dc in dirpath2:
                 # TODO: handle a generic directory for tiles
                 if dc == "tiles":
@@ -360,5 +366,16 @@ def _describe_file(filepath):
 
             except fiona.errors.DriverError:
                 LOGGER.debug('Could not detect raster or vector data')
+                tree = ET.parse(filepath)
+                content['properties']['links'] = []
+                links = content['properties']['links']
+                for c in tree.getroot():
+                    links.append({
+                        'rel': 'child',
+                        'href': c.find('loc').text,
+                        'title': c.find('loc').text.split('/')[-1],
+                        'type': 'application/ld+json',
+                        'lastmod': c.find('lastmod').text
+                    })
 
     return content
