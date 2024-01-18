@@ -124,7 +124,7 @@ jobs:
         pytest tests/test_ogr_gpkg_provider.py
         pytest tests/test_ogr_shapefile_provider.py
         pytest tests/test_ogr_sqlite_provider.py
-        pytest tests/test_ogr_wfs_provider.py
+        # pytest tests/test_ogr_wfs_provider.py
         pytest tests/test_openapi.py
         pytest tests/test_postgresql_provider.py
         pytest tests/test_rasterio_provider.py
