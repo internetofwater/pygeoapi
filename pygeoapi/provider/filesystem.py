@@ -371,7 +371,8 @@ def _describe_file(filepath):
                 links = content['properties']['links']
 
                 _ = tree.getroot().itertext()
-                result = [line.strip() for line in ''.join(_).split('\n') if line.strip()]
+                result = [line.strip() for line in
+                          ''.join(_).split('\n') if line.strip()]
                 for i in range(0, len(result), 2):
                     href = result[i]
                     lastmod = result[i + 1]
