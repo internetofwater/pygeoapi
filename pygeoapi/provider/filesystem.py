@@ -369,13 +369,21 @@ def _describe_file(filepath):
                 tree = ET.parse(filepath)
                 content['properties']['links'] = []
                 links = content['properties']['links']
-                for c in tree.getroot():
+
+                _ = tree.getroot().itertext()
+                result = [line.strip() for line in
+                          ''.join(_).split('\n') if line.strip()]
+                for i in range(0, len(result), 2):
+                    href = result[i]
+                    lastmod = result[i + 1]
+                    title = href.split('/')[-1]
+
                     links.append({
                         'rel': 'child',
-                        'href': c.find('loc').text,
-                        'title': c.find('loc').text.split('/')[-1],
+                        'href': href,
+                        'title': title,
                         'type': 'application/ld+json',
-                        'lastmod': c.find('lastmod').text
+                        'lastmod': lastmod
                     })
 
     return content
