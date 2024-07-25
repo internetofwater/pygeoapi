@@ -48,6 +48,7 @@ PLUGINS = {
         'ESRI': 'pygeoapi.provider.esri.ESRIServiceProvider',
         'FileSystem': 'pygeoapi.provider.filesystem.FileSystemProvider',
         'GeoJSON': 'pygeoapi.provider.geojson.GeoJSONProvider',
+        'GeoPandas': 'pygeoapi_plugins.provider.geopandas_.GeoPandasProvider',
         'Hateoas': 'pygeoapi.provider.hateoas.HateoasProvider',
         'MapScript': 'pygeoapi.provider.mapscript_.MapScriptProvider',
         'MongoDB': 'pygeoapi.provider.mongo.MongoProvider',
