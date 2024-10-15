@@ -725,17 +725,17 @@ class API:
             'rel': request.get_linkrel(F_JSON),
             'type': FORMAT_TYPES[F_JSON],
             'title': l10n.translate('This document as JSON', request.locale),
-            'href': f"{self.base_url}?f={F_JSON}"
+            'href': f"{self.base_url}/?f={F_JSON}"
         }, {
             'rel': request.get_linkrel(F_JSONLD),
             'type': FORMAT_TYPES[F_JSONLD],
             'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-            'href': f"{self.base_url}?f={F_JSONLD}"
+            'href': f"{self.base_url}/?f={F_JSONLD}"
         }, {
             'rel': request.get_linkrel(F_HTML),
             'type': FORMAT_TYPES[F_HTML],
             'title': l10n.translate('This document as HTML', request.locale),
-            'href': f"{self.base_url}?f={F_HTML}",
+            'href': f"{self.base_url}/?f={F_HTML}",
             'hreflang': self.default_locale
         }, {
             'rel': 'service-desc',
@@ -1021,31 +1021,31 @@ class API:
                 'type': FORMAT_TYPES[F_JSON],
                 'rel': 'root',
                 'title': l10n.translate('The landing page of this server as JSON', request.locale),  # noqa
-                'href': f"{self.base_url}?f={F_JSON}"
+                'href': f"{self.base_url}/?f={F_JSON}"
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'root',
                 'title': l10n.translate('The landing page of this server as HTML', request.locale),  # noqa
-                'href': f"{self.base_url}?f={F_HTML}"
+                'href': f"{self.base_url}/?f={F_HTML}"
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSON],
                 'rel': request.get_linkrel(F_JSON),
                 'title': l10n.translate('This document as JSON', request.locale),  # noqa
-                'href': f'{self.get_collections_url()}/{k}?f={F_JSON}'
+                'href': f'{self.get_collections_url()}/{k}/?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSONLD],
                 'rel': request.get_linkrel(F_JSONLD),
                 'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-                'href': f'{self.get_collections_url()}/{k}?f={F_JSONLD}'
+                'href': f'{self.get_collections_url()}/{k}/?f={F_JSONLD}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': request.get_linkrel(F_HTML),
                 'title': l10n.translate('This document as HTML', request.locale),  # noqa
-                'href': f'{self.get_collections_url()}/{k}?f={F_HTML}'
+                'href': f'{self.get_collections_url()}/{k}/?f={F_HTML}'
             })
 
             if collection_data_type in ['feature', 'coverage', 'record']:
