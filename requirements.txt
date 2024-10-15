@@ -5,7 +5,6 @@ Flask
 jinja2
 jsonschema
 pydantic<2.0
-pygeoapi-plugins
 pygeofilter
 pygeoif
 pyproj
