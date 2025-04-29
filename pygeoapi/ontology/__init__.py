@@ -22,7 +22,7 @@ PREFIX dct: <http://purl.org/dc/terms/>
 
 BINDS = '''
 BIND(CONCAT(LCASE(STR(?label)), "-edr") AS ?collection_id)
-BIND(REPLACE(STR(?parameter), "^.*/", "") AS ?parameter_name)
+BIND(REPLACE(STR(?parameter), "^.*[#/]", "") AS ?parameter_name)
 '''
 
 
