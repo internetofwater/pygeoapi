@@ -1284,8 +1284,8 @@ def describe_collections(api: API, request: APIRequest,
                         if key not in collection_mapping:
                             continue
 
-                        value['title'] = collection_mapping[key]['name']
-                        key = collection_mapping[key]['id']
+                        value['title'] = collection_mapping[key]['title']
+                        key = collection_mapping[key]['key']
                         LOGGER.info(f'Using ODM2 Variable: {key}')
 
                     collection['parameter_names'][key] = {
@@ -1325,7 +1325,6 @@ def describe_collections(api: API, request: APIRequest,
                 title1 = f'{qt} {title1}'
                 title2 = l10n.translate('query for this collection as HTML', request.locale)  # noqa
                 title2 = f'{qt} {title2}'
-
                 collection['links'].append({
                     'type': 'application/json',
                     'rel': 'data',

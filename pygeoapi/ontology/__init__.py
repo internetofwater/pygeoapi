@@ -28,10 +28,7 @@ BIND(REPLACE(STR(?parameter), "^.*/", "") AS ?parameter_name)
 
 @functools.cache
 def get_graph() -> Graph:
-
-    g = Graph()
-    g.parse(GRAPH)
-    return g
+    return Graph().parse(GRAPH)
 
 
 def get_mapping(parameter_names: list) -> dict:
@@ -59,22 +56,18 @@ def get_mapping(parameter_names: list) -> dict:
             {BINDS}
         }}
     '''
-    qres = get_graph().query(query)
-    for row in qres:
-        cid = str(row.collection_id)
-        pname = str(row.parameter_name)
+
+    for c in get_graph().query(query):
+        cid = str(c.collection_id)
+        pname = str(c.parameter_name)
         if cid not in resp:
             resp[cid] = {
                 pname: {
-                    'id': str(row.odmvariable),
-                    'name': str(row.odmvarname)
+                    'key': str(c.odmvariable),
+                    'title': str(c.odmvarname)
                 }
             }
 
     return resp
 
-
-if __name__ == '__main__':
-    get_mapping(['reservoirStorage'])
-else:
-    get_graph()
+get_graph()
