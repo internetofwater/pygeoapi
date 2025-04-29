@@ -763,17 +763,17 @@ def landing_page(api: API,
         'rel': request.get_linkrel(F_JSON),
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('This document as JSON', request.locale),
-        'href': f"{api.base_url}?f={F_JSON}{ext_qargs}"
+        'href': f"{api.base_url}?f={F_JSON}&{ext_qargs}"
     }, {
         'rel': request.get_linkrel(F_JSONLD),
         'type': FORMAT_TYPES[F_JSONLD],
         'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-        'href': f"{api.base_url}?f={F_JSONLD}{ext_qargs}"
+        'href': f"{api.base_url}?f={F_JSONLD}&{ext_qargs}"
     }, {
         'rel': request.get_linkrel(F_HTML),
         'type': FORMAT_TYPES[F_HTML],
         'title': l10n.translate('This document as HTML', request.locale),
-        'href': f"{api.base_url}?f={F_HTML}{ext_qargs}",
+        'href': f"{api.base_url}?f={F_HTML}&{ext_qargs}",
         'hreflang': api.default_locale
     }, {
         'rel': 'service-desc',
@@ -795,7 +795,7 @@ def landing_page(api: API,
         'rel': 'data',
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('Collections', request.locale),
-        'href': f'{api.get_collections_url()}{ext_qargs}'
+        'href': f'{api.get_collections_url()}&{ext_qargs}'
     }, {
         'rel': 'http://www.opengis.net/def/rel/ogc/1.0/processes',
         'type': FORMAT_TYPES[F_JSON],

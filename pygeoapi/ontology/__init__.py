@@ -1,6 +1,7 @@
 
 import functools
 import logging
+import os
 from pathlib import Path
 from rdflib import Graph
 
@@ -8,7 +9,6 @@ from rdflib import Graph
 LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
-GRAPH = THISDIR / 'ontology.ttl'
 
 SELECT = 'SELECT ?collection_id ?parameter_name ?odmvariable ?odmvarname'
 
@@ -28,6 +28,8 @@ BIND(REPLACE(STR(?parameter), "^.*/", "") AS ?parameter_name)
 
 @functools.cache
 def get_graph() -> Graph:
+    GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH',
+                      THISDIR / 'ontology.ttl')
     return Graph().parse(GRAPH)
 
 
@@ -67,7 +69,10 @@ def get_mapping(parameter_names: list) -> dict:
                     'title': str(c.odmvarname)
                 }
             }
+        else:
+            resp[cid][pname] = {
+                'key': str(c.odmvariable),
+                'title': str(c.odmvarname)
+            }
 
     return resp
-
-get_graph()
