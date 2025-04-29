@@ -48,6 +48,7 @@ from shapely.wkt import loads as shapely_loads
 
 from pygeoapi import l10n
 from pygeoapi.api import evaluate_limit
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider.base import (
     ProviderGenericError, ProviderItemNotFoundError)
@@ -297,6 +298,10 @@ def get_collection_edr_query(api: API, request: APIRequest,
     parameternames = request.params.get('parameter-name') or []
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
+
+        onto_mapping = get_mapping(parameternames)
+        if dataset in onto_mapping:
+            parameternames = list(onto_mapping[dataset].keys())
 
     bbox = None
     if query_type in ['cube', 'locations']:

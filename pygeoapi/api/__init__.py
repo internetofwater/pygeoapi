@@ -763,17 +763,17 @@ def landing_page(api: API,
         'rel': request.get_linkrel(F_JSON),
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('This document as JSON', request.locale),
-        'href': f"{api.base_url}?f={F_JSON}&{ext_qargs}"
+        'href': f"{api.base_url}?f={F_JSON}"
     }, {
         'rel': request.get_linkrel(F_JSONLD),
         'type': FORMAT_TYPES[F_JSONLD],
         'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-        'href': f"{api.base_url}?f={F_JSONLD}&{ext_qargs}"
+        'href': f"{api.base_url}?f={F_JSONLD}"
     }, {
         'rel': request.get_linkrel(F_HTML),
         'type': FORMAT_TYPES[F_HTML],
         'title': l10n.translate('This document as HTML', request.locale),
-        'href': f"{api.base_url}?f={F_HTML}&{ext_qargs}",
+        'href': f"{api.base_url}?f={F_HTML}",
         'hreflang': api.default_locale
     }, {
         'rel': 'service-desc',
@@ -795,7 +795,7 @@ def landing_page(api: API,
         'rel': 'data',
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('Collections', request.locale),
-        'href': f'{api.get_collections_url()}&{ext_qargs}'
+        'href': api.get_collections_url() + ext_qargs
     }, {
         'rel': 'http://www.opengis.net/def/rel/ogc/1.0/processes',
         'type': FORMAT_TYPES[F_JSON],
@@ -1061,31 +1061,31 @@ def describe_collections(api: API, request: APIRequest,
             'type': FORMAT_TYPES[F_JSON],
             'rel': 'root',
             'title': l10n.translate('The landing page of this server as JSON', request.locale),  # noqa
-            'href': f"{api.base_url}?f={F_JSON}&{ext_qargs}"
+            'href': f"{api.base_url}?f={F_JSON}"
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': 'root',
             'title': l10n.translate('The landing page of this server as HTML', request.locale),  # noqa
-            'href': f"{api.base_url}?f={F_HTML}&{ext_qargs}"
+            'href': f"{api.base_url}?f={F_HTML}"
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSON],
             'rel': request.get_linkrel(F_JSON),
             'title': l10n.translate('This document as JSON', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}/{k}?f={F_JSON}{ext_qargs}'
+            'href': f'{api.get_collections_url()}/{k}?f={F_JSON}'
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
             'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}/{k}?f={F_JSONLD}&{ext_qargs}'
+            'href': f'{api.get_collections_url()}/{k}?f={F_JSONLD}'
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
             'title': l10n.translate('This document as HTML', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}/{k}?f={F_HTML}&{ext_qargs}'
+            'href': f'{api.get_collections_url()}/{k}?f={F_HTML}'
         })
 
         if collection_data_type == 'record':
@@ -1285,7 +1285,7 @@ def describe_collections(api: API, request: APIRequest,
                             continue
 
                         value['title'] = collection_mapping[key]['title']
-                        key = collection_mapping[key]['key']
+                        key = collection_mapping[key]['id']
                         LOGGER.info(f'Using ODM2 Variable: {key}')
 
                     collection['parameter_names'][key] = {
@@ -1312,7 +1312,7 @@ def describe_collections(api: API, request: APIRequest,
             for qt in p.get_query_types():
                 data_query = {
                     'link': {
-                        'href': f'{api.get_collections_url()}/{k}/{qt}?{ext_qargs}',  # noqa
+                        'href': f'{api.get_collections_url()}/{k}/{qt}',
                         'rel': 'data',
                         'variables': {
                             'query_type': qt
@@ -1325,17 +1325,18 @@ def describe_collections(api: API, request: APIRequest,
                 title1 = f'{qt} {title1}'
                 title2 = l10n.translate('query for this collection as HTML', request.locale)  # noqa
                 title2 = f'{qt} {title2}'
+
                 collection['links'].append({
                     'type': 'application/json',
                     'rel': 'data',
                     'title': title1,
-                    'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_JSON}&{ext_qargs}'  # noqa
+                    'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_JSON}'
                 })
                 collection['links'].append({
                     'type': FORMAT_TYPES[F_HTML],
                     'rel': 'data',
                     'title': title2,
-                    'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_HTML}&{ext_qargs}'  # noqa
+                    'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_HTML}'
                 })
 
         if dataset is not None and k == dataset:
@@ -1350,19 +1351,19 @@ def describe_collections(api: API, request: APIRequest,
             'type': FORMAT_TYPES[F_JSON],
             'rel': request.get_linkrel(F_JSON),
             'title': l10n.translate('This document as JSON', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}?f={F_JSON}{ext_qargs}'
+            'href': f'{api.get_collections_url()}?f={F_JSON}'
         })
         fcm['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
             'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}?f={F_JSONLD}{ext_qargs}'
+            'href': f'{api.get_collections_url()}?f={F_JSONLD}'
         })
         fcm['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
             'title': l10n.translate('This document as HTML', request.locale),  # noqa
-            'href': f'{api.get_collections_url()}?f={F_HTML}{ext_qargs}'
+            'href': f'{api.get_collections_url()}?f={F_HTML}'
         })
 
     if request.format == F_HTML:  # render
