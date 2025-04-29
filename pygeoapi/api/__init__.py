@@ -57,6 +57,7 @@ import pytz
 from pygeoapi import __version__, l10n
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider.base import (
@@ -955,11 +956,22 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
+    LOGGER.debug('Processing parameter-name parameter')
+    parameternames = request.params.get('parameter-name') or []
+    if isinstance(parameternames, str):
+        parameternames_ = parameternames.split(',')
+        onto_mapping = get_mapping(parameternames_)
+
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
             LOGGER.debug(f'Skipping hidden layer: {k}')
             continue
+
+        if ext_qargs and k not in onto_mapping:
+            LOGGER.info(f'Skipping collection: {k}')
+            continue
+
         collection_data = get_provider_default(v['providers'])
         collection_data_type = collection_data['type']
 
@@ -1261,6 +1273,15 @@ def describe_collections(api: API, request: APIRequest,
             if parameters:
                 collection['parameter_names'] = {}
                 for key, value in parameters.items():
+                    if parameternames != [] and k in onto_mapping:
+                        collection_mapping = onto_mapping[k]
+                        if key not in collection_mapping:
+                            continue
+
+                        value['title'] = collection_mapping[key]['name']
+                        key = collection_mapping[key]['id']
+                        LOGGER.info(f'Using ODM2 Variable: {key}')
+
                     collection['parameter_names'][key] = {
                         'id': key,
                         'type': 'Parameter',
