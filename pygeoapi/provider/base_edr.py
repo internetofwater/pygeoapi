@@ -41,7 +41,7 @@ EDR_QUERY_TYPES = ['position', 'radius', 'area', 'cube',
 class BaseEDRProvider(BaseProvider):
     """Base EDR Provider"""
 
-    query_types = []
+    query_types = set()
 
     def __init__(self, provider_def):
         """
@@ -64,7 +64,7 @@ class BaseEDRProvider(BaseProvider):
                 LOGGER.error(msg)
                 raise ProviderInvalidDataError(msg)
 
-            cls.query_types.append(fn.__name__)
+            cls.query_types.add(fn.__name__)
             return fn
         return inner
 
@@ -84,7 +84,7 @@ class BaseEDRProvider(BaseProvider):
         :returns: `list` of EDR query types
         """
 
-        return self.query_types
+        return list(self.query_types)
 
     def query(self, **kwargs):
         """
