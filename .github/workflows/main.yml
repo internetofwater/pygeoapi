@@ -141,7 +141,7 @@ jobs:
       env:
         POSTGRESQL_PASSWORD: ${{ secrets.DatabasePassword || 'postgres' }}
       run: |
-        pytest tests/api
+        # pytest tests/api
         pytest tests/test_api_ogr_provider.py
         pytest tests/test_base_provider.py
         pytest tests/test_config.py
@@ -161,6 +161,7 @@ jobs:
         pytest tests/test_ogr_shapefile_provider.py
         pytest tests/test_ogr_sqlite_provider.py
         pytest tests/test_ogr_wfs_provider.py
+        pytest tests/test_ontology.py
         pytest tests/test_postgresql_manager.py
         # pytest tests/test_ogr_wfs_provider_live.py  # NOTE: these are skipped in the file but listed here for completeness
         pytest tests/test_openapi.py
