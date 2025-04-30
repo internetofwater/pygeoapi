@@ -12,6 +12,7 @@ python-dateutil
 pytz
 PyYAML
 rasterio
+rdflib
 requests
 shapely
 SQLAlchemy

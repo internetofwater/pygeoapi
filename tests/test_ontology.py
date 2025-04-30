@@ -1,0 +1,199 @@
+# =================================================================
+#
+# Authors: Ben Webb <bwebb@lincolninst.edu>
+#
+# Copyright (c) 2025 Ben Webb
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# =================================================================
+
+import pytest
+from rdflib import Graph, Namespace, URIRef, Literal
+from rdflib.namespace import RDF, SKOS
+from pygeoapi.ontology import get_mapping, get_graph
+
+# Namespaces
+USBR = Namespace("http://lincolninst.edu/cgs/vocabularies/usbr#")
+VAR = Namespace("http://vocabulary.odm2.org/variablename/")
+
+
+@pytest.fixture
+def ontology_file(tmp_path):
+    ttl_path = tmp_path / "ontology.ttl"
+
+    g = Graph()
+    g.bind("skos", SKOS)
+    g.bind("", USBR)
+    g.bind("variablename", VAR)
+
+    # Collection hierarchy
+    parent = USBR["c_1805cd26"]
+    collection = USBR["rise"]
+    param = USBR["47"]
+    odmvar = VAR["reservoirStorage"]
+
+    g.add((parent, RDF.type, SKOS.Concept))
+    g.add((collection, SKOS.broader, parent))
+    g.add((collection, SKOS.prefLabel, Literal("Rise")))
+
+    g.add((param, SKOS.broader, collection))
+    g.add((param, RDF.type, SKOS.Concept))
+    g.add((param, SKOS.inScheme, URIRef("http://example.org/scheme")))
+    g.add((param, SKOS.exactMatch, odmvar))
+
+    g.add((odmvar, SKOS.prefLabel, Literal("Reservoir storage")))
+
+    g.serialize(destination=ttl_path, format="turtle")
+    return ttl_path
+
+
+def test_env_mapping(monkeypatch, ontology_file):
+    monkeypatch.setenv("PYGEOAPI_ONTOLOGY_GRAPH", str(ontology_file))
+    get_graph.cache_clear()
+    result = get_mapping(['reservoirStorage'])
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['rise-edr']) == 1
+
+    assert 'usace-edr' not in result
+
+
+def test_get_mapping():
+    get_graph.cache_clear()
+    result = get_mapping(['reservoirStorage'])
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['rise-edr']) == 3
+
+    assert 'usace-edr' in result
+    assert 'Conservation+Storage' in result['usace-edr']
+
+    mapping = result['usace-edr']['Conservation+Storage']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['usace-edr']) == 1
+
+
+def test_url_mapping():
+    result = get_mapping(
+        ['http://vocabulary.odm2.org/variablename/reservoirStorage']
+    )
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['rise-edr']) == 3
+
+    assert 'usace-edr' in result
+    assert 'Conservation+Storage' in result['usace-edr']
+
+    mapping = result['usace-edr']['Conservation+Storage']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['usace-edr']) == 1
+
+
+def test_empty_mapping():
+    result = get_mapping(['notReservoirStorage'])
+    assert result == {}
+
+
+def test_multiple_mappings():
+    result = get_mapping(['reservoirStorage', 'streamflow'])
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    mapping = result['rise-edr']['20']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/streamflow'
+    assert mapping['title'] == 'Streamflow'
+
+    assert len(result['rise-edr']) == 11
+
+    assert 'usace-edr' in result
+    assert 'Conservation+Storage' in result['usace-edr']
+
+    mapping = result['usace-edr']['Conservation+Storage']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['usace-edr']) == 1
+
+
+def test_all_mappings():
+    result = get_mapping(['*'])
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    mapping = result['rise-edr']['20']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/streamflow'
+    assert mapping['title'] == 'Streamflow'
+
+    assert len(result['rise-edr']) == 261
+
+    assert 'usace-edr' in result
+    assert 'Conservation+Storage' in result['usace-edr']
+
+    mapping = result['usace-edr']['Conservation+Storage']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['usace-edr']) == 1
