@@ -48,6 +48,7 @@ from shapely.wkt import loads as shapely_loads
 
 from pygeoapi import l10n
 from pygeoapi.api import evaluate_limit
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider.base import (
     ProviderGenericError, ProviderItemNotFoundError)
@@ -302,6 +303,10 @@ def get_collection_edr_query(api: API, request: APIRequest,
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
 
+        onto_mapping = get_mapping(parameternames)
+        if dataset in onto_mapping:
+            parameternames = list(onto_mapping[dataset].keys())
+
     bbox = None
     if query_type in ['cube', 'locations']:
         LOGGER.debug('Processing cube bbox')
@@ -386,6 +391,9 @@ def get_collection_edr_query(api: API, request: APIRequest,
         return api.get_exception(
             err.http_status_code, headers, request.format,
             err.ogc_exception_code, err.message)
+
+    # TODO: Inject ODM2 Parameter in CovJSON
+    # if data['type'] in ('Coverage', 'CoverageCollection', 'Domain'):
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)

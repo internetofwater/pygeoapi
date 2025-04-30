@@ -96,7 +96,7 @@ class BaseEDRProvider(BaseProvider):
         :returns: `list` of EDR query types
         """
 
-        return self.query_types
+        return list(self.query_types)
 
     def query(self, **kwargs):
         """
