@@ -32,6 +32,7 @@ import logging
 import os
 from pathlib import Path
 from rdflib import Graph
+from typing import TypedDict
 
 
 LOGGER = logging.getLogger(__name__)
@@ -48,10 +49,17 @@ PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
 '''
 
+# ?collection_id is the name of the configured resource
+# ?parameter_name is the parameter name of the source system
 BINDS = '''
 BIND(CONCAT(LCASE(STR(?label)), "-edr") AS ?collection_id)
 BIND(REPLACE(STR(?parameter), "^.*[#/]", "") AS ?parameter_name)
 '''
+
+
+class KeyTitleDict(TypedDict):
+    key: str
+    title: str
 
 
 @functools.cache
@@ -61,7 +69,17 @@ def get_graph() -> Graph:
     return Graph().parse(GRAPH)
 
 
-def get_mapping(parameter_names: list) -> dict:
+def get_mapping(parameter_names: list
+                ) -> dict[str, dict[str, KeyTitleDict]]:
+    """
+    Query Ontology graph for matching EDR collectionad and parameters
+    to create a dictionary mapping from OGC Collection to ODM2
+    Vocabulary
+
+    :param parameter_names: `list` of ODM2 parameter shortnames or IRIs
+
+    :returns: `dict` of ontology mapping
+    """
     resp = {}
     VALUES = ''
     if parameter_names != ['*']:
