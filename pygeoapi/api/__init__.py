@@ -961,12 +961,12 @@ def describe_collections(api: API, request: APIRequest,
         collections_dict = collections
 
     LOGGER.debug('Processing parameter-name parameter')
-    ext_qargs = ''
     parameternames = request.params.get('parameter-name') or []
+    ext_qargs = (f'?parameter-name={parameternames}'
+                 if isinstance(parameternames, str) else '')
     if isinstance(parameternames, str):
-        parameternames_ = parameternames.split(',')
-        onto_mapping = get_mapping(parameternames_)
-        ext_qargs = f'parameter-name={parameternames}'
+        parameternames = parameternames.split(',')
+        onto_mapping = get_mapping(parameternames)
 
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
@@ -1279,7 +1279,7 @@ def describe_collections(api: API, request: APIRequest,
             if parameters:
                 collection['parameter_names'] = {}
                 for key, value in parameters.items():
-                    if parameternames != [] and k in onto_mapping:
+                    if ext_qargs and k in onto_mapping:
                         collection_mapping = onto_mapping[k]
                         if key not in collection_mapping:
                             continue
