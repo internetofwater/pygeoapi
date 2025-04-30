@@ -1285,7 +1285,7 @@ def describe_collections(api: API, request: APIRequest,
                             continue
 
                         value['title'] = collection_mapping[key]['title']
-                        key = collection_mapping[key]['id']
+                        key = collection_mapping[key]['key']
                         LOGGER.info(f'Using ODM2 Variable: {key}')
 
                     collection['parameter_names'][key] = {

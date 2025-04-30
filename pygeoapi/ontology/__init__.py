@@ -83,6 +83,7 @@ def get_mapping(parameter_names: list) -> dict:
             ?parameter skos:exactMatch ?odmvariable .
             ?odmvariable skos:prefLabel ?odmvarname .
 
+            FILTER(STRSTARTS(STR(?odmvariable), STR(variablename:)))
             {BINDS}
         }}
     '''
