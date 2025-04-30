@@ -385,6 +385,9 @@ def get_collection_edr_query(api: API, request: APIRequest,
             err.http_status_code, headers, request.format,
             err.ogc_exception_code, err.message)
 
+    # TODO: Inject ODM2 Parameter in CovJSON 
+    # if data['type'] in ('Coverage', 'CoverageCollection', 'Domain'):
+
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)
 
