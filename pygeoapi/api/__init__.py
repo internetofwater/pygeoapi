@@ -57,6 +57,7 @@ import pytz
 from pygeoapi import __version__, l10n
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider.base import (
@@ -748,6 +749,10 @@ def landing_page(api: API,
                 request.locale)
     }
 
+    parameternames = request.params.get('parameter-name')
+    ext_qargs = (f'?parameter-name={parameternames}'
+                 if isinstance(parameternames, str) else '')
+
     LOGGER.debug('Creating links')
     # TODO: put title text in config or translatable files?
     fcm['links'] = [{
@@ -793,7 +798,7 @@ def landing_page(api: API,
         'rel': 'data',
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('Collections', request.locale),
-        'href': api.get_collections_url()
+        'href': api.get_collections_url() + ext_qargs
     }, {
         'rel': 'http://www.opengis.net/def/rel/ogc/1.0/processes',
         'type': FORMAT_TYPES[F_JSON],
@@ -958,11 +963,24 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
+    LOGGER.debug('Processing parameter-name parameter')
+    parameternames = request.params.get('parameter-name') or []
+    ext_qargs = (f'?parameter-name={parameternames}'
+                 if isinstance(parameternames, str) else '')
+    if isinstance(parameternames, str):
+        parameternames = parameternames.split(',')
+        onto_mapping = get_mapping(parameternames)
+
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
             LOGGER.debug(f'Skipping hidden layer: {k}')
             continue
+
+        if ext_qargs and k not in onto_mapping:
+            LOGGER.info(f'Skipping collection: {k}')
+            continue
+
         collection_data = get_provider_default(v['providers'])
         collection_data_type = collection_data['type']
 
@@ -1264,6 +1282,15 @@ def describe_collections(api: API, request: APIRequest,
             if parameters:
                 collection['parameter_names'] = {}
                 for key, value in parameters.items():
+                    if ext_qargs and k in onto_mapping:
+                        collection_mapping = onto_mapping[k]
+                        if key not in collection_mapping:
+                            continue
+
+                        value['title'] = collection_mapping[key]['title']
+                        key = collection_mapping[key]['key']
+                        LOGGER.info(f'Using ODM2 Variable: {key}')
+
                     collection['parameter_names'][key] = {
                         'id': key,
                         'type': 'Parameter',
