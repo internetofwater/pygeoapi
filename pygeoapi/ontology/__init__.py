@@ -63,18 +63,18 @@ def get_graph() -> Graph:
 
 def get_mapping(parameter_names: list) -> dict:
     resp = {}
+    VALUES = ''
+    if parameter_names != ['*']:
+        values = ' '.join([f'<{p}>' if p.startswith('http') else
+                           f'variablename:{p}'
+                           for p in parameter_names])
+        VALUES = f'VALUES ?odmvariable {{ {values} }}'
 
-    VALUES = ' '.join([f'<{p}>' if p.startswith('http') else
-                       f'variablename:{p}'
-                       for p in parameter_names])
     query = f'''
         {PREFIXES}
         {SELECT}
         WHERE {{
-            VALUES ?odmvariable {{
-                {VALUES}
-            }}
-
+            {VALUES}
             ?collection skos:broader :c_1805cd26 .
             ?collection skos:prefLabel ?label .
             ?parameter skos:broader+ ?collection .

@@ -168,3 +168,31 @@ def test_multiple_mappings():
     assert mapping['title'] == 'Reservoir storage'
 
     assert len(result['usace-edr']) == 1
+
+def test_all_mappings():
+    result = get_mapping(['*'])
+
+    assert 'rise-edr' in result
+    assert '47' in result['rise-edr']
+
+    mapping = result['rise-edr']['47']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    mapping = result['rise-edr']['20']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/streamflow'
+    assert mapping['title'] == 'Streamflow'
+
+    assert len(result['rise-edr']) == 261
+
+    assert 'usace-edr' in result
+    assert 'Conservation+Storage' in result['usace-edr']
+
+    mapping = result['usace-edr']['Conservation+Storage']
+    assert mapping['key'] == \
+        'http://vocabulary.odm2.org/variablename/reservoirStorage'
+    assert mapping['title'] == 'Reservoir storage'
+
+    assert len(result['usace-edr']) == 1
