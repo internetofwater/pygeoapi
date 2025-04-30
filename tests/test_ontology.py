@@ -169,6 +169,7 @@ def test_multiple_mappings():
 
     assert len(result['usace-edr']) == 1
 
+
 def test_all_mappings():
     result = get_mapping(['*'])
 
