@@ -80674,7 +80674,8 @@ essentially what i am doing to get the list of params is just fetching all the l
   skos:inScheme :conceptScheme_3e018a2a;
   skos:prefLabel "Flood Storage"@en;
   skos:editorialNote "ac-ft"@en;
-  skos:broader :c_868fb8ce .
+  skos:broader :c_868fb8ce ;
+  skos:exactMatch variablename:reservoirStorage .
 
 <https://water.sec.usace.army.mil/cda/reporting/providers/projects#Stage+Tailwater>
   a skos:Concept;

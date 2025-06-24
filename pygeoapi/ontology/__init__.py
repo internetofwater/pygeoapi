@@ -31,6 +31,7 @@ import functools
 import logging
 import os
 from pathlib import Path
+from pyparsing.exceptions import ParseException
 from rdflib import Graph
 from typing import TypedDict
 
@@ -84,7 +85,7 @@ def get_mapping(parameter_names: list
     VALUES = ''
     if parameter_names != ['*']:
         values = ' '.join([f'<{p}>' if p.startswith('http') else
-                           f'variablename:{p}'
+                           f'variablename:{p}'.replace(' ', '+')
                            for p in parameter_names])
         VALUES = f'VALUES ?odmvariable {{ {values} }}'
 
@@ -106,7 +107,13 @@ def get_mapping(parameter_names: list
         }}
     '''
 
-    for c in get_graph().query(query):
+    try:
+        response = get_graph().query(query)
+    except ParseException:
+        LOGGER.error('Unable to parse query')
+        return {}
+
+    for c in response:
         cid = str(c.collection_id)
         pname = str(c.parameter_name)
         if cid not in resp:
@@ -118,6 +125,12 @@ def get_mapping(parameter_names: list
             }
         else:
             resp[cid][pname] = {
+                'key': str(c.odmvariable),
+                'title': str(c.odmvarname)
+            }
+
+        if '+' in pname:
+            resp[cid][pname.replace('+', ' ')] = {
                 'key': str(c.odmvariable),
                 'title': str(c.odmvarname)
             }

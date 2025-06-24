@@ -107,7 +107,7 @@ def test_get_mapping():
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 1
+    assert len(result['usace-edr']) == 4
 
 
 def test_url_mapping():
@@ -133,7 +133,7 @@ def test_url_mapping():
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 1
+    assert len(result['usace-edr']) == 4
 
 
 def test_empty_mapping():
@@ -167,7 +167,7 @@ def test_multiple_mappings():
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 1
+    assert len(result['usace-edr']) == 4
 
 
 def test_all_mappings():
@@ -196,4 +196,4 @@ def test_all_mappings():
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 1
+    assert len(result['usace-edr']) == 4
