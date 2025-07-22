@@ -80,13 +80,17 @@ class ESRIServiceProvider(BaseProvider):
 
         if not self._fields:
             # Load fields
-            params = {'f': 'pjson'}
-            resp = self.get_response(self.data, params=params)
+            try:
+                resp = self.get_response(self.data, params={'f': 'pjson'})
+            except ProviderConnectionError as err:
+                msg = f'Could not access resource {self.data}: {err}'
+                LOGGER.error(msg)
+                return {}
 
             if resp.get('error') is not None:
                 msg = f"Connection error: {resp['error']['message']}"
                 LOGGER.error(msg)
-                raise ProviderConnectionError(msg)
+                return {}
 
             try:
                 # Verify Feature/Map Service supports required capabilities
