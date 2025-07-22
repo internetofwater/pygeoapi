@@ -50,7 +50,7 @@ from starlette.responses import (
 )
 import uvicorn
 
-from pygeoapi.api import API, APIRequest, apply_gzip
+from pygeoapi.api import API, APIRequest, apply_gzip, apply_integrity
 import pygeoapi.api as core_api
 import pygeoapi.api.coverages as coverages_api
 import pygeoapi.api.environmental_data_retrieval as edr_api
@@ -139,6 +139,8 @@ async def execute_from_starlette(api_function, request: Request, *args,
         # encoding would add gzip metadata, thus we skip
         if status != HTTPStatus.NO_CONTENT:
             content = apply_gzip(headers, content)
+
+        apply_integrity(headers, content)
 
     response = _to_response(headers, status, content)
 
