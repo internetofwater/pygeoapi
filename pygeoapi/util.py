@@ -318,7 +318,7 @@ def file_modified_iso8601(filepath: Path) -> str:
     """
 
     return datetime.fromtimestamp(
-        os.path.getctime(filepath)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        os.path.getmtime(filepath)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
 def human_size(nbytes: int) -> str:

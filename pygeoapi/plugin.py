@@ -70,7 +70,13 @@ PLUGINS = {
         'WMSFacade': 'pygeoapi.provider.wms_facade.WMSFacadeProvider',
         'WMTSFacade': 'pygeoapi.provider.wmts_facade.WMTSFacadeProvider',
         'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
-        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider'
+        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider',
+        'CKAN': 'pygeoapi_plugins.provider.ckan.CKANProvider',
+        'FileSystemXML': 'pygeoapi_plugins.provider.filesystem_xml.FileSystemXMLProvider',  # noqa: E501
+        'GeoPandas': 'pygeoapi_plugins.provider.geopandas_.GeoPandasProvider', # noqa
+        'MVT-PostgreSQL': 'pygeoapi_plugins.provider.mvt_postgresql.MVTPostgreSQLProvider_',  # noqa: E501
+        'PsuedoPostgreSQL': 'pygeoapi_plugins.provider.postgresql.PseudoPostgreSQLProvider', # noqa
+        'SPARQL': 'pygeoapi_plugins.provider.sparql.SPARQLProvider'
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
@@ -78,7 +84,9 @@ PLUGINS = {
     'process': {
         'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor',
         'ShapelyFunctions': 'pygeoapi.process.shapely_functions.ShapelyFunctionsProcessor',  # noqa: E501
-        'Echo': 'pygeoapi.process.echo.EchoProcessor'
+        'Echo': 'pygeoapi.process.echo.EchoProcessor',
+        'Intersector': 'pygeoapi_plugins.process.intersect.IntersectionProcessor', # noqa
+        'SitemapGenerator': 'pygeoapi_plugins.process.sitemap.SitemapProcessor', # noqa
     },
     'process_manager': {
         'Dummy': 'pygeoapi.process.manager.dummy.DummyManager',

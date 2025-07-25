@@ -2,8 +2,6 @@ name: Build
 
 on:
   push:
-    branches:
-      - master
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -115,6 +113,7 @@ jobs:
         docker run -d --name oracledb -e ORACLE_PWD=oracle -v ${{ github.workspace }}/tests/data/oracle/init-db:/opt/oracle/scripts/startup -p 1521:1521 container-registry.oracle.com/database/express:21.3.0-xe
     - name: Install requirements 📦
       run: |
+        pip3 install git+https://github.com/cgs-earth/pygeoapi-plugins.git
         pip3 install -r requirements.txt
         pip3 install -r requirements-admin.txt
         pip3 install -r requirements-starlette.txt

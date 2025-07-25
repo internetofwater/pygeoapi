@@ -128,7 +128,8 @@ RUN \
 
 ADD requirements-docker.txt requirements-admin.txt /pygeoapi/
 # Install remaining pygeoapi deps
-RUN python3 -m pip install --no-cache-dir -r requirements-docker.txt \
+RUN python3 -m pip install --no-cache-dir https://github.com/cgs-earth/pygeoapi-plugins/archive/refs/heads/master.zip \
+    && python3 -m pip install --no-cache-dir -r requirements-docker.txt \
     && python3 -m pip install --no-cache-dir -r requirements-admin.txt
 
 
