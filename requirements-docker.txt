@@ -1,5 +1,6 @@
 elasticsearch-dsl<8
 geoalchemy2
+pygeoapi-plugins
 pygeofilter[backend-sqlalchemy]
 pygeoif
 pygeometa
