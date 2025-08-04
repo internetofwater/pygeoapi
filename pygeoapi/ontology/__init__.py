@@ -50,13 +50,6 @@ PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
 '''
 
-# ?collection_id is the name of the configured resource
-# ?parameter_name is the parameter name of the source system
-BINDS = '''
-BIND(CONCAT(LCASE(STR(?label)), "-edr") AS ?collection_id)
-BIND(REPLACE(STR(?parameter), "^.*[#/]", "") AS ?parameter_name)
-'''
-
 
 class KeyTitleDict(TypedDict):
     key: str
@@ -94,16 +87,18 @@ def get_mapping(parameter_names: list
         {SELECT}
         WHERE {{
             {VALUES}
-            ?collection skos:broader :c_1805cd26 .
-            ?collection skos:prefLabel ?label .
-            ?parameter skos:broader+ ?collection .
-            ?parameter rdf:type skos:Concept .
-            ?parameter skos:inScheme ?scheme .
-            ?parameter skos:exactMatch ?odmvariable .
+
             ?odmvariable skos:prefLabel ?odmvarname .
 
+            ?parameter skos:exactMatch|skos:broadMatch ?odmvariable ;
+                       rdf:type skos:Concept ;
+                       skos:hiddenLabel ?parameter_name ;
+                       skos:broader+ ?collection .
+
+            ?collection skos:broader :c_1805cd26 ;
+                        skos:hiddenLabel ?collection_id .
+
             FILTER(STRSTARTS(STR(?odmvariable), STR(variablename:)))
-            {BINDS}
         }}
     '''
 
