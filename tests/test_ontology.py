@@ -55,11 +55,13 @@ def ontology_file(tmp_path):
     g.add((parent, RDF.type, SKOS.Concept))
     g.add((collection, SKOS.broader, parent))
     g.add((collection, SKOS.prefLabel, Literal("Rise")))
+    g.add((collection, SKOS.hiddenLabel, Literal("rise-edr")))
 
     g.add((param, SKOS.broader, collection))
     g.add((param, RDF.type, SKOS.Concept))
     g.add((param, SKOS.inScheme, URIRef("http://example.org/scheme")))
     g.add((param, SKOS.exactMatch, odmvar))
+    g.add((param, SKOS.hiddenLabel, Literal(47)))
 
     g.add((odmvar, SKOS.prefLabel, Literal("Reservoir storage")))
 
@@ -100,14 +102,14 @@ def test_get_mapping():
     assert len(result['rise-edr']) == 3
 
     assert 'usace-edr' in result
-    assert 'Conservation+Storage' in result['usace-edr']
+    assert 'Conservation Storage' in result['usace-edr']
 
-    mapping = result['usace-edr']['Conservation+Storage']
+    mapping = result['usace-edr']['Conservation Storage']
     assert mapping['key'] == \
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 4
+    assert len(result['usace-edr']) == 2
 
 
 def test_url_mapping():
@@ -126,14 +128,14 @@ def test_url_mapping():
     assert len(result['rise-edr']) == 3
 
     assert 'usace-edr' in result
-    assert 'Conservation+Storage' in result['usace-edr']
+    assert 'Conservation Storage' in result['usace-edr']
 
-    mapping = result['usace-edr']['Conservation+Storage']
+    mapping = result['usace-edr']['Conservation Storage']
     assert mapping['key'] == \
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 4
+    assert len(result['usace-edr']) == 2
 
 
 def test_empty_mapping():
@@ -157,17 +159,17 @@ def test_multiple_mappings():
         'http://vocabulary.odm2.org/variablename/streamflow'
     assert mapping['title'] == 'Streamflow'
 
-    assert len(result['rise-edr']) == 11
+    assert len(result['rise-edr']) == 6
 
     assert 'usace-edr' in result
-    assert 'Conservation+Storage' in result['usace-edr']
+    assert 'Conservation Storage' in result['usace-edr']
 
-    mapping = result['usace-edr']['Conservation+Storage']
+    mapping = result['usace-edr']['Conservation Storage']
     assert mapping['key'] == \
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 4
+    assert len(result['usace-edr']) == 2
 
 
 def test_all_mappings():
@@ -186,14 +188,14 @@ def test_all_mappings():
         'http://vocabulary.odm2.org/variablename/streamflow'
     assert mapping['title'] == 'Streamflow'
 
-    assert len(result['rise-edr']) == 261
+    assert len(result['rise-edr']) == 6
 
     assert 'usace-edr' in result
-    assert 'Conservation+Storage' in result['usace-edr']
+    assert 'Conservation Storage' in result['usace-edr']
 
-    mapping = result['usace-edr']['Conservation+Storage']
+    mapping = result['usace-edr']['Conservation Storage']
     assert mapping['key'] == \
         'http://vocabulary.odm2.org/variablename/reservoirStorage'
     assert mapping['title'] == 'Reservoir storage'
 
-    assert len(result['usace-edr']) == 4
+    assert len(result['usace-edr']) == 2
