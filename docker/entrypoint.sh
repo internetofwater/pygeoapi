@@ -130,9 +130,14 @@ case ${entry_cmd} in
             find . -type f -name "*.py" | xargs chmod 0444
         fi
 
-        # Start with hot reload options
-        start_gunicorn --reload --reload-extra-file ${PYGEOAPI_CONFIG}
-        ;;
+		# Include Jinja templates
+		EXTRA_FILES=$(find /pygeoapi/pygeoapi/templates -type f -exec echo --reload-extra-file {} \; | xargs)
+
+		# Start with hot reload options
+		start_gunicorn --reload \
+			--reload-extra-file ${PYGEOAPI_CONFIG} \
+			${EXTRA_FILES}
+		;;
 
     *)
         error "unknown command arg: must be run (default), run-with-hot-reload, or test"
