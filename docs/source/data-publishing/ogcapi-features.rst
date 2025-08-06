@@ -558,12 +558,19 @@ The ``ORACLE_POOL_MIN`` and ``ORACLE_POOL_MAX`` environment variables are used t
 If none or only one of the environment variables is set, session pooling will not be activated and standalone connections are established at every request.
 
 
+Extra_params
+""""""""""""
+The Oracle provider allows for additional parameters that can be passed in the request. It allows for the processing of additional parameters that are not defined in the ``pygeoapi-config.yml`` to be passed to a custom SQL-Manipulator-Plugin. An example use case of this is advanced filtering without exposing the filtered columns like follows ``.../collections/some_data/items?is_recent=true``. The ``SqlManipulator`` plugin's ``process_query`` method would receive ``extra_params = {'is_recent': 'true'}`` and could dynamically add a custom condition to the SQL query, like ``AND SYSDATE - create_date < 30``.
+
+The ``include_extra_query_parameters`` has to be set to ``true`` for the collection in ``pygeoapi-config.yml``. This ensures that the additional request parameters (e.g. ``is_recent=true``) are not discarded. 
+
+
 Custom SQL Manipulator Plugin
 """""""""""""""""""""""""""""
 The provider supports a SQL-Manipulator-Plugin class. With this, the SQL statement could be manipulated. This is
 useful e.g. for authorization at row level or manipulation of the explain plan with hints. 
 
-An example an more information about that feature you can find in the test class in tests/test_oracle_provider.py.
+An example and more information about that feature can be found in the test class in tests/test_oracle_provider.py.
 
 .. _Parquet:
 
@@ -803,6 +810,32 @@ To publish a TinyDB (`see website <https://tinydb.readthedocs.io>`_) index, the 
          data: /path/to/file.db
          id_field: identifier
          time_field: datetimefield
+
+.. _including-extra-query-parameters:
+
+Including extra query parameters
+--------------------------------
+
+By default, pygeoapi ignores any extra query parameters.  For example, for a given ``.../items`` query, the query key-value pair ``foo1=bar1`` (if ``foo1`` is not a valid property of a given collection) would be ignored by pygeoapi as well as the underlying provider.
+
+To include/accept extra query parameters, the ``include_extra_query_parameters`` directive can be set in provider configuration:
+
+.. code-block:: yaml
+
+   providers:
+       - type: feature
+         editable: true|false  # optional, default is false
+         name: TinyDB
+         data: /path/to/file.db
+         id_field: identifier
+         time_field: datetimefield
+         include_extra_query_parameters: true
+
+
+With the above configuration, pygeoapi will pass ``foo1=bar1`` to the underlying provider.  If the underlying provider does not have ``foo1`` as a queryable property, then an exception will be returned citing an unknown property.
+
+Extra query parameters are useful for custom providers who may wish for specific functionality to be triggered by query parameters that are not bound to a given collection's properties.
+
 
 Controlling the order of properties
 -----------------------------------
