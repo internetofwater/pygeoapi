@@ -117,8 +117,13 @@ case ${entry_cmd} in
 		# Lock all Python files (for gunicorn hot reload)
 		find . -type f -name "*.py" | xargs chmod 0444
 
+		# Include Jinja templates
+		EXTRA_FILES=$(find /pygeoapi/pygeoapi/templates -type f -exec echo --reload-extra-file {} \; | xargs)
+
 		# Start with hot reload options
-		start_gunicorn --reload --reload-extra-file ${PYGEOAPI_CONFIG}
+		start_gunicorn --reload \
+			--reload-extra-file ${PYGEOAPI_CONFIG} \
+			${EXTRA_FILES}
 		;;
 
 	*)
