@@ -63,20 +63,19 @@ def jsonldify(func: Callable) -> Callable:
         cls = args[0]
         cfg = cls.config
         meta = cfg.get('metadata', {})
-        contact = meta.get('contact', {})
-        provider = meta.get('provider', {})
         ident = meta.get('identification', {})
         fcmld = {
           "@context": {
               "skos": "http://www.w3.org/2004/02/skos/core#",
-              "dataset": "@graph",
+              "xsd": "http://www.w3.org/2001/XMLSchema#",
+              "dataset": "skos:member",
               "@language": locale_
           },
           "@type": "skos:ConceptScheme",
           "@id": cfg.get('server', {}).get('url'),
           "skos:prefLabel": l10n.translate(ident.get('title'), locale_),
-          "skos:narrower":{
-            "@type": "skos:Concept",
+          "skos:narrower": {
+            "@type": ["skos:Concept", "skos:Collection"],
             "@id": f"{cls.base_url}/collections",
             "skos:topConceptOf": {"@id": cls.base_url},
             "skos:prefLabel": "Collections"
@@ -102,31 +101,61 @@ def jsonldify_collection(cls, collection: dict, locale_: str) -> dict:
     uri = f"{cls.base_url}/collections/{collection['id']}"
     dataset = {
         "@id": uri,
-        "@type": "skos:Concept",
+        "@type": ["skos:Concept", "skos:Collection"],
         "skos:prefLabel": l10n.translate(collection['title'], locale_),
         "skos:hiddenLabel": collection['id'],
         "skos:inScheme": {"@id": cls.base_url},
         "skos:broader": {"@id": f"{cls.base_url}/collections"},
         "skos:note": l10n.translate(collection['description'], locale_),
-        "@graph": []
+        "@graph": [],
+        "skos:member": [],
+        "skos:memberList": [
+            {"@id": cls.base_url, "@type": "xsd:anyURI"}
+        ],
+        "skos:seeAlso": [],
     }
+
+    links = collection.get('links', [])
+    if links:
+        valid_link_rels = ['items', "http://www.opengis.net/def/rel/ogc/1.0/map"] # noqa
+        valid_link_types = ['text/html', "image/png"]
+        for link in links:
+            if not link.get('href', '').startswith(cls.base_url):
+                dataset['skos:seeAlso'] = [
+                    {
+                        "@value": link['href'],
+                        "@type": "xsd:anyURI",
+                    }
+                ]
+            elif link.get('rel') in valid_link_rels and link.get('type') in valid_link_types: # noqa
+                dataset["skos:member"].append({
+                    "@value": link["href"].split('?')[0],
+                    "@type": "xsd:anyURI",
+                })
+
+    data_queries = collection.get('data_queries', {})
+    for query, value in data_queries.items():
+        dataset["skos:member"].append({
+            "@value": value["link"]["href"],
+            "@type": "xsd:anyURI",
+        })
 
     parameters = collection.get('parameter_names', {})
     for parameter, values in parameters.items():
         symbol = values['unit']['symbol']
         try:
-            symbol = symbol['type'] + symbol['value']
+            unit = symbol['type'] + symbol['value']
         except TypeError:
-            pass
+            continue
 
         dataset["@graph"].append({
-            "@id": f"{uri}/parameters/{parameter}",
+            "@id": f"{uri}/parameters/{parameter}".replace(' ', '+'),
             "@type": "skos:Concept",
             "skos:prefLabel": values['name'],
             "skos:hiddenLabel": parameter,
             "skos:broader": {"@id": uri},
             "skos:inScheme": {"@id": cls.base_url},
-            "qudt:hasUnit": {"@id": symbol['type'] + symbol['value']}
+            "qudt:hasUnit": {"@id": unit}
         })
 
     return dataset
