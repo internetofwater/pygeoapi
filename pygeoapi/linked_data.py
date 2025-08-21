@@ -67,46 +67,19 @@ def jsonldify(func: Callable) -> Callable:
         provider = meta.get('provider', {})
         ident = meta.get('identification', {})
         fcmld = {
-          "@context": "https://schema.org/docs/jsonldcontext.jsonld",
-          "@type": "DataCatalog",
+          "@context": {
+              "skos": "http://www.w3.org/2004/02/skos/core#",
+              "dataset": "@graph",
+              "@language": locale_
+          },
+          "@type": "skos:ConceptScheme",
           "@id": cfg.get('server', {}).get('url'),
-          "url": cfg.get('server', {}).get('url'),
-          "name": l10n.translate(ident.get('title'), locale_),
-          "description": l10n.translate(
-              ident.get('description'), locale_),
-          "keywords": l10n.translate(
-              ident.get('keywords'), locale_),
-          "termsOfService": l10n.translate(
-              ident.get('terms_of_service'), locale_),
-          "license": meta.get('license', {}).get('url'),
-          "provider": {
-            "@type": "Organization",
-            "name": l10n.translate(provider.get('name'), locale_),
-            "url": provider.get('url'),
-            "address": {
-                "@type": "PostalAddress",
-                "streetAddress": contact.get('address'),
-                "postalCode": contact.get('postalcode'),
-                "addressLocality": contact.get('city'),
-                "addressRegion": contact.get('stateorprovince'),
-                "addressCountry": contact.get('country')
-            },
-            "contactPoint": {
-                "@type": "Contactpoint",
-                "email": contact.get('email'),
-                "telephone": contact.get('phone'),
-                "faxNumber": contact.get('fax'),
-                "url": contact.get('url'),
-                "hoursAvailable": {
-                    "opens": contact.get('hours'),
-                    "description": l10n.translate(
-                        contact.get('instructions'), locale_)
-                },
-                "contactType": l10n.translate(
-                    contact.get('role'), locale_),
-                "description": l10n.translate(
-                    contact.get('position'), locale_)
-            }
+          "skos:prefLabel": l10n.translate(ident.get('title'), locale_),
+          "skos:narrower":{
+            "@type": "skos:Concept",
+            "@id": f"{cls.base_url}/collections",
+            "skos:topConceptOf": {"@id": cls.base_url},
+            "skos:prefLabel": "Collections"
           }
         }
         cls.fcmld = fcmld
@@ -126,48 +99,29 @@ def jsonldify_collection(cls, collection: dict, locale_: str) -> dict:
     :returns: `collection` a dictionary, mapped into JSON-LD, of
               type schema:Dataset
     """
-    temporal_extent = collection.get('extent', {}).get('temporal', {})
-    interval = temporal_extent.get('interval')
-    if interval is not None:
-        interval = f'{interval[0][0]}/{interval[0][1]}'
-
-    spatial_extent = collection.get('extent', {}).get('spatial', {})
-    bbox = spatial_extent.get('bbox')
-    crs = spatial_extent.get('crs')
-    hascrs84 = crs.endswith('CRS84')
-
+    uri = f"{cls.base_url}/collections/{collection['id']}"
     dataset = {
-        "@type": "Dataset",
-        "@id": f"{cls.base_url}/collections/{collection['id']}",
-        "name": l10n.translate(collection['title'], locale_),
-        "description": l10n.translate(collection['description'], locale_),
-        "license": cls.fcmld['license'],
-        "keywords": l10n.translate(collection.get('keywords'), locale_),
-        "spatial": None if (not hascrs84 or not bbox) else [{
-            "@type": "Place",
-            "geo": {
-                "@type": "GeoShape",
-                "box": f'{_bbox[0]},{_bbox[1]} {_bbox[2]},{_bbox[3]}'
-            }
-        } for _bbox in bbox],
-        "temporalCoverage": interval
+        "@id": uri,
+        "@type": "skos:Concept",
+        "skos:prefLabel": l10n.translate(collection['title'], locale_),
+        "skos:hiddenLabel": collection['id'],
+        "skos:inScheme": {"@id": cls.base_url},
+        "skos:broader": {"@id": f"{cls.base_url}/collections"},
+        "skos:note": l10n.translate(collection['description'], locale_),
+        "@graph": []
     }
-    dataset['url'] = dataset['@id']
 
-    links = collection.get('links', [])
-    if links:
-        dataset['distribution'] = list(map(lambda link: {k: v for k, v in {
-            "@type": "DataDownload",
-            "contentURL": link['href'],
-            "encodingFormat": link['type'],
-            "description": l10n.translate(link['title'], locale_),
-            "inLanguage": link.get(
-                'hreflang', l10n.locale2str(cls.default_locale)
-            ),
-            "author": link['rel'] if link.get(
-                'rel', None
-            ) == 'author' else None
-        }.items() if v is not None}, links))
+    parameters = collection.get('parameter_names', {})
+    for parameter, values in parameters.items():
+        dataset["@graph"].append({
+            "@id": f"{uri}/parameters/{parameter}",
+            "@type": "skos:Concept",
+            "skos:prefLabel": values['name'],
+            "skos:hiddenLabel": parameter,
+            "skos:broader": {"@id": uri},
+            "skos:inScheme": {"@id": cls.base_url},
+            "qudt:hasUnit": {"@id": values['unit']['symbol']['type'] + values['unit']['symbol']['value']}
+        })
 
     return dataset
 

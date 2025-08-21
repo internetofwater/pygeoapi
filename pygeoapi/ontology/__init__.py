@@ -31,7 +31,6 @@ import functools
 import logging
 import os
 from pathlib import Path
-from pyparsing.exceptions import ParseException
 from rdflib import Graph
 from typing import TypedDict
 
@@ -104,7 +103,7 @@ def get_mapping(parameter_names: list
 
     try:
         response = get_graph().query(query)
-    except ParseException:
+    except Exception:
         LOGGER.error('Unable to parse query')
         return {}
 
