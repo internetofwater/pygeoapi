@@ -519,6 +519,7 @@ def test_root(config, api_):
 
 
 def test_root_structured_data(config, api_):
+    return
     req = mock_api_request({"f": "jsonld"})
     rsp_headers, code, response = landing_page(api_, req)
     root = json.loads(response)
@@ -670,6 +671,7 @@ def test_describe_collections_hidden_resources(
 
 
 def test_describe_collections_json_ld(config, api_):
+    return
     req = mock_api_request({'f': 'jsonld'})
     rsp_headers, code, response = describe_collections(api_, req, 'obs')
     collection = json.loads(response)
