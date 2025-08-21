@@ -113,6 +113,12 @@ def jsonldify_collection(cls, collection: dict, locale_: str) -> dict:
 
     parameters = collection.get('parameter_names', {})
     for parameter, values in parameters.items():
+        symbol = values['unit']['symbol']
+        try:
+            symbol = symbol['type'] + symbol['value']
+        except TypeError:
+            pass
+
         dataset["@graph"].append({
             "@id": f"{uri}/parameters/{parameter}",
             "@type": "skos:Concept",
@@ -120,7 +126,7 @@ def jsonldify_collection(cls, collection: dict, locale_: str) -> dict:
             "skos:hiddenLabel": parameter,
             "skos:broader": {"@id": uri},
             "skos:inScheme": {"@id": cls.base_url},
-            "qudt:hasUnit": {"@id": values['unit']['symbol']['type'] + values['unit']['symbol']['value']}
+            "qudt:hasUnit": {"@id": symbol['type'] + symbol['value']}
         })
 
     return dataset
