@@ -48,6 +48,7 @@ from shapely.wkt import loads as shapely_loads
 
 from pygeoapi import l10n
 from pygeoapi.api import evaluate_limit
+from pygeoapi.formatter.base import FormatterSerializationError
 from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider.base import (
@@ -427,6 +428,38 @@ def get_collection_edr_query(api: API, request: APIRequest,
         content = render_j2_template(api.tpl_config, tpl_config,
                                      'collections/edr/query.html', data,
                                      api.default_locale)
+
+    elif request.format == 'csv':  # render
+        formatter = load_plugin('formatter',
+                                {'name': 'CSVCoverage'})
+
+        try:
+            content = formatter.write(
+                data=data,
+                options={
+                    'provider_def': get_provider_by_type(
+                        collections[dataset]['providers'],
+                        'edr')
+                }
+            )
+        except FormatterSerializationError:
+            msg = 'Error serializing output'
+            return api.get_exception(
+                HTTPStatus.INTERNAL_SERVER_ERROR, headers, request.format,
+                'NoApplicableCode', msg)
+
+        headers['Content-Type'] = formatter.mimetype
+
+        if p.filename is None:
+            filename = f'{dataset}.csv'
+        else:
+            filename = f'{p.filename}'
+
+        cd = f'attachment; filename="{filename}"'
+        headers['Content-Disposition'] = cd
+
+        return headers, HTTPStatus.OK, content
+
     else:
         content = to_json(data, api.pretty_print)
 

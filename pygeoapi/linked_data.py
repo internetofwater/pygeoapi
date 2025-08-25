@@ -68,6 +68,7 @@ def jsonldify(func: Callable) -> Callable:
           "@context": {
               "skos": "http://www.w3.org/2004/02/skos/core#",
               "xsd": "http://www.w3.org/2001/XMLSchema#",
+              "qudt": "http://qudt.org/schema/qudt/",
               "dataset": "skos:member",
               "@language": locale_
           },
