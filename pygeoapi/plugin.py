@@ -73,7 +73,8 @@ PLUGINS = {
         'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider'
     },
     'formatter': {
-        'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
+        'CSV': 'pygeoapi.formatter.csv_.CSVFormatter',
+        'CSVCoverage': 'pygeoapi.formatter.csv_.CSVCoverageFormatter'
     },
     'process': {
         'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor',

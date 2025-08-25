@@ -104,3 +104,66 @@ class CSVFormatter(BaseFormatter):
 
     def __repr__(self):
         return f'<CSVFormatter> {self.name}'
+
+
+class CSVCoverageFormatter(BaseFormatter):
+    def __init__(self, formatter_def: dict):
+        super().__init__({'name': 'csv'})
+        self.mimetype = 'text/csv; charset=utf-8'
+
+    def write(self, options: dict = {}, data: dict = None) -> str:
+        """
+        Generate data in CSV format
+
+        :param options: CSV formatting options
+        :param data: dict of CovJSON data
+
+        :returns: string representation of format
+        """
+        units = {}
+        for p, v in data['parameters'].items():
+            unit = v['unit']['symbol']
+            if isinstance(unit, dict):
+                unit = unit.get('value')
+            units[p] = unit
+
+        fields = [
+            'parameter',
+            'datetime',
+            'value',
+            'unit',
+            'x',
+            'y'
+        ]
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fields)
+        writer.writeheader()
+
+        if data['type'] == 'Coverage':
+            self._add_coverage(writer, units, data)
+        else:
+            for coverage in data['coverages']:
+                self._add_coverage(writer, units, coverage)
+
+        return output.getvalue().encode('utf-8')
+
+    @staticmethod
+    def _add_coverage(writer: csv.DictWriter, units: dict, data: dict):
+        axes = data['domain']['axes']
+        t_values = axes['t']['values']
+
+        try:
+            for i in range(len(t_values)):
+                for k, v in data['ranges'].items():
+                    writer.writerow({
+                        'parameter': k,
+                        'datetime': t_values[i],
+                        'value': v['values'][i],
+                        'unit': units[k],
+                        'x': axes.get('x', {}).get('values')[-1],
+                        'y': axes.get('y', {}).get('values')[-1],
+                    })
+        except ValueError as err:
+            LOGGER.error(err)
+            raise FormatterSerializationError('Error writing CSV output')
