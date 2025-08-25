@@ -877,14 +877,24 @@ def describe_collections(api: API, request: APIRequest,
         parameternames = parameternames.split(',')
         onto_mapping = get_mapping(parameternames)
 
+    LOGGER.debug('Processing provider-name parameter')
+    providers = request.params.get('provider-name') or []
+    if isinstance(providers, str):
+        providers = set(providers.split(','))
+
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
-            LOGGER.debug(f'Skipping hidden layer: {k}')
+            LOGGER.debug(f'Hidden collection, skipping hidden layer: {k}')
             continue
 
         if ext_qargs and k not in onto_mapping:
-            LOGGER.info(f'Skipping collection: {k}')
+            LOGGER.info(f'No matching parameter, skipping collection: {k}')
+            continue
+
+        pvd_name = v.get('provider-name', [])
+        if providers and not [k for k in pvd_name if k in providers]:
+            LOGGER.info(f'No matching provider, skipping collection: {k}')
             continue
 
         collection_data = get_provider_default(v['providers'])
