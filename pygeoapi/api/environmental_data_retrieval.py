@@ -390,7 +390,9 @@ def get_collection_edr_query(api: API, request: APIRequest,
             err.ogc_exception_code, err.message)
 
     # TODO: Inject ODM2 Parameter in CovJSON
-    # if data['type'] in ('Coverage', 'CoverageCollection', 'Domain'):
+    if data.get('parameters') and "onto_mapping" in locals():
+        dataset_mapping = onto_mapping[dataset]
+        LOGGER.error(dataset_mapping)
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)
