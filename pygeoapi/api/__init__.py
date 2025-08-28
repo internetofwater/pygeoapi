@@ -1321,6 +1321,28 @@ def describe_collections(api: API, request: APIRequest,
                                 }
                             }
 
+                    else:
+                        collection['parameter_names'][key] = {
+                            'id': key,
+                            'type': 'Parameter',
+                            'name': value['title'],
+                            'observedProperty': {
+                                'label': {
+                                    'id': key,
+                                        'en': value['title']
+                                },
+                            },
+                            'unit': {
+                                'label': {
+                                    'en': value['title']
+                                },
+                                'symbol': {
+                                    'value': value['x-ogc-unit'],
+                                    'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                                }
+                            }
+                        }
+
             for qt in p.get_query_types():
                 data_query = {
                     'link': {
