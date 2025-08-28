@@ -1329,7 +1329,7 @@ def describe_collections(api: API, request: APIRequest,
                             'observedProperty': {
                                 'label': {
                                     'id': key,
-                                        'en': value['title']
+                                    'en': value['title']
                                 },
                             },
                             'unit': {
@@ -1338,7 +1338,7 @@ def describe_collections(api: API, request: APIRequest,
                                 },
                                 'symbol': {
                                     'value': value['x-ogc-unit'],
-                                    'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                                    'type': 'http://www.opengis.net/def/uom/UCUM/' # noqa
                                 }
                             }
                         }
