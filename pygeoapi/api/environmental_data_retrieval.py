@@ -428,7 +428,6 @@ def get_collection_edr_query(api: API, request: APIRequest,
 
             paramgroups[term]['members'].append(k)
 
-        
         if paramgroups != {}:
             data['parameterGroups'] = list(paramgroups.values())
 

@@ -209,7 +209,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             query_params[self.time_field] = self._make_datetime(datetime_)
 
         fields = {
-            fields: self.fields[field]
+            field: self.fields[field]
             for field in select_properties
             if field in self.fields
         } if select_properties else self.fields

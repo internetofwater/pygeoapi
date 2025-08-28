@@ -118,7 +118,7 @@ class XarrayProvider(BaseProvider):
                         dtype = 'string'
 
                     if not value.attrs.get('units'):
-                        LOGGER.warning(f"Field {key} missing units, will be skipped")
+                        LOGGER.warning(f"Field {key} missing units, will be skipped") # noqa
                         continue
 
                     self._fields[key] = {
