@@ -100,7 +100,7 @@ def get_mapping(parameter_names: list
                        {SKOS_ANYMATCH} ?variable .
         }}
     '''
-    LOGGER.error(query)
+
     try:
         response = get_graph().query(query)
     except Exception:
