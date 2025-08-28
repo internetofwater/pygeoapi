@@ -399,34 +399,30 @@ def get_collection_edr_query(api: API, request: APIRequest,
             if isinstance(data['parameters'], dict) else
             {p['id']: p for p in data['parameters']}
         )
-        for k, v in onto_mapping[dataset].items():
-            if k not in params:
+        for k, param in params.items():
+            if k not in onto_mapping[dataset]:
                 continue
 
-            term = v['key']
-            param = params[k]
-
-            if param.get('narrowerThan'):
-                param['narrowerThan'].append(term)
-            else:
-                param['narrowerThan'] = [term]
-
-            if term not in paramgroups:
+            param_groups = onto_mapping[dataset][k]
+            param['narrowerThan'] = [*param_groups]
+        
+            for term, title in param_groups.items():
                 # Create new parameeter group
-                paramgroups[term] = {
-                    'type': 'ParameterGroup',
-                    'id': term,
-                    'label': v['title'],
-                    'observedProperty': {
+                if term not in paramgroups:
+                    paramgroups[term] = {
+                        'type': 'ParameterGroup',
                         'id': term,
-                        'label': {
-                            'en': v['title']
-                        }
-                    },
-                    'members': []
-                }
+                        'label': title,
+                        'observedProperty': {
+                            'id': term,
+                            'label': {
+                                'en': title
+                            }
+                        },
+                        'members': []
+                    }
 
-            paramgroups[term]['members'].append(k)
+                paramgroups[term]['members'].append(k)
 
         if paramgroups != {}:
             data['parameterGroups'] = list(paramgroups.values())

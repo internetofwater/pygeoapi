@@ -39,7 +39,9 @@ LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
-SELECT = 'SELECT ?collection_id ?parameter_name ?odmvariable ?odmvarname'
+SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable ?variable_name'
+
+SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)'
 
 PREFIXES = '''
 PREFIX : <http://lincolninst.edu/cgs/vocabularies/usbr#>
@@ -79,7 +81,7 @@ def get_mapping(parameter_names: list
         values = ' '.join([f'<{p}>' if p.startswith('http') else
                            f'variablename:{p}'.replace(' ', '+')
                            for p in parameter_names])
-        VALUES = f'VALUES ?odmvariable {{ {values} }}'
+        VALUES = f'VALUES ?variable_group {{ {values} }}'
 
     query = f'''
         {PREFIXES}
@@ -87,46 +89,37 @@ def get_mapping(parameter_names: list
         WHERE {{
             {VALUES}
 
-            ?odmvariable skos:prefLabel ?odmvarname .
-
-            ?parameter skos:exactMatch|skos:broadMatch ?odmvariable ;
-                       rdf:type skos:Concept ;
-                       skos:hiddenLabel ?parameter_name ;
-                       skos:broader+ ?collection .
+            ?variable skos:broader* ?variable_group ;
+                      skos:prefLabel ?variable_name .
 
             ?collection skos:broader :c_1805cd26 ;
                         skos:hiddenLabel ?collection_id .
-
-            FILTER(STRSTARTS(STR(?odmvariable), STR(variablename:)))
+            
+            ?parameter skos:hiddenLabel ?parameter_id ;
+                       skos:broader+ ?collection ;
+                       {SKOS_ANYMATCH} ?variable .
         }}
     '''
-
+    LOGGER.error(query)
     try:
         response = get_graph().query(query)
     except Exception:
         LOGGER.error('Unable to parse query')
+        LOGGER.error(query)
         return {}
 
     for c in response:
         cid = str(c.collection_id)
-        pname = str(c.parameter_name)
+        pname = str(c.parameter_id).replace('+', ' ')
         if cid not in resp:
             resp[cid] = {
-                pname: {
-                    'key': str(c.odmvariable),
-                    'title': str(c.odmvarname)
-                }
-            }
-        else:
-            resp[cid][pname] = {
-                'key': str(c.odmvariable),
-                'title': str(c.odmvarname)
+                pname: {}
             }
 
-        if '+' in pname:
-            resp[cid][pname.replace('+', ' ')] = {
-                'key': str(c.odmvariable),
-                'title': str(c.odmvarname)
-            }
+        if pname not in resp[cid]:
+            resp[cid][pname] = {}
+
+        resp[cid][pname].update({str(c.variable): str(c.variable_name)})
+
 
     return resp

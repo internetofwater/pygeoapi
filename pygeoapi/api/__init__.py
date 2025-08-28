@@ -1299,30 +1299,27 @@ def describe_collections(api: API, request: APIRequest,
                         if key not in collection_mapping:
                             continue
 
-                        value['title'] = collection_mapping[key]['title']
-                        key = collection_mapping[key]['key']
-                        LOGGER.info(f'Using ODM2 Variable: {key}')
-
-                    collection['parameter_names'][key] = {
-                        'id': key,
-                        'type': 'Parameter',
-                        'name': value['title'],
-                        'observedProperty': {
-                            'label': {
-                                'id': key,
-                                'en': value['title']
-                            },
-                        },
-                        'unit': {
-                            'label': {
-                                'en': value['title']
-                            },
-                            'symbol': {
-                                'value': value['x-ogc-unit'],
-                                'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                        for id, name in collection_mapping[key].items():
+                            collection['parameter_names'][id] = {
+                                'id': id,
+                                'type': 'Parameter',
+                                'name': name,
+                                'observedProperty': {
+                                    'label': {
+                                        'id': id,
+                                        'en': name
+                                    },
+                                },
+                                'unit': {
+                                    'label': {
+                                        'en': name
+                                    },
+                                    'symbol': {
+                                        'value': value['x-ogc-unit'],
+                                        'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                                    }
+                                }
                             }
-                        }
-                    }
 
             for qt in p.get_query_types():
                 data_query = {
