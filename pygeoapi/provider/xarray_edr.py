@@ -208,15 +208,17 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         if datetime_ is not None:
             query_params[self.time_field] = self._make_datetime(datetime_)
 
+        fields = {
+            field: self.fields[field]
+            for field in select_properties
+            if field in self.fields
+        } if select_properties else self.fields
+
         LOGGER.debug(f'query parameters: {query_params}')
         try:
-            if select_properties:
-                self._fields = {k: v for k, v in self._fields.items() if k in select_properties}  # noqa
-                data = self._data[[*select_properties]]
-            else:
-                data = self._data
-            data = data.sel(query_params)
-            data = _convert_float32_to_float64(data)
+            data = _convert_float32_to_float64(
+                self._data[[*fields]].sel(query_params)
+            )
         except KeyError:
             raise ProviderNoDataError()
 
@@ -240,7 +242,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
                           for var_name, var in data.variables.items()}
         }
 
-        return self.gen_covjson(out_meta, data, self.fields)
+        return self.gen_covjson(out_meta, data, fields)
 
     def _make_datetime(self, datetime_):
         """
