@@ -39,9 +39,9 @@ LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
-SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable ?variable_name'
+SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable ?variable_name' # noqa
 
-SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)'
+SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)' # noqa
 
 PREFIXES = '''
 PREFIX : <http://lincolninst.edu/cgs/vocabularies/usbr#>
@@ -94,7 +94,7 @@ def get_mapping(parameter_names: list
 
             ?collection skos:broader :c_1805cd26 ;
                         skos:hiddenLabel ?collection_id .
-            
+
             ?parameter skos:hiddenLabel ?parameter_id ;
                        skos:broader+ ?collection ;
                        {SKOS_ANYMATCH} ?variable .
@@ -120,6 +120,5 @@ def get_mapping(parameter_names: list
             resp[cid][pname] = {}
 
         resp[cid][pname].update({str(c.variable): str(c.variable_name)})
-
 
     return resp

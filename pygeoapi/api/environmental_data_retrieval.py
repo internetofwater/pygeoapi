@@ -405,7 +405,7 @@ def get_collection_edr_query(api: API, request: APIRequest,
 
             param_groups = onto_mapping[dataset][k]
             param['narrowerThan'] = [*param_groups]
-        
+
             for term, title in param_groups.items():
                 # Create new parameeter group
                 if term not in paramgroups:
