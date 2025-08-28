@@ -389,10 +389,48 @@ def get_collection_edr_query(api: API, request: APIRequest,
             err.http_status_code, headers, request.format,
             err.ogc_exception_code, err.message)
 
-    # TODO: Inject ODM2 Parameter in CovJSON
-    if data.get('parameters') and "onto_mapping" in locals():
-        dataset_mapping = onto_mapping[dataset]
-        LOGGER.error(dataset_mapping)
+    if 'onto_mapping' not in locals():
+        onto_mapping = get_mapping(['*'])
+
+    if data.get('parameters') and dataset in onto_mapping:
+        paramgroups = {}
+        params = (
+            data['parameters']
+            if isinstance(data['parameters'], dict) else
+            {p['id']: p for p in data['parameters']}
+        )
+        for k, v in onto_mapping[dataset].items():
+            if k not in params:
+                continue
+
+            term = v['key']
+            param = params[k]
+
+            if param.get('narrowerThan'):
+                param['narrowerThan'].append(term)
+            else:
+                param['narrowerThan'] = [term]
+
+            if term not in paramgroups:
+                # Create new parameeter group
+                paramgroups[term] = {
+                    'type': 'ParameterGroup',
+                    'id': term,
+                    'label': v['title'],
+                    'observedProperty': {
+                        'id': term,
+                        'label': {
+                            'en': v['title']
+                        }
+                    },
+                    'members': []
+                }
+
+            paramgroups[term]['members'].append(k)
+
+        
+        if paramgroups != {}:
+            data['parameterGroups'] = list(paramgroups.values())
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)

@@ -970,6 +970,8 @@ def describe_collections(api: API, request: APIRequest,
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
         onto_mapping = get_mapping(parameternames)
+    else:
+        onto_mapping = get_mapping(['*'])
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []
