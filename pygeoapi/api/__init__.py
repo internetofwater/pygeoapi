@@ -1376,7 +1376,7 @@ def describe_collections(api: API, request: APIRequest,
 
         fcm['collections'].append(collection)
 
-    if fcm['collections'] == [] or fcm['links'] == []:
+    if fcm.get('collections') == []:
         msg = 'No matching sources found'
         return api.get_exception(
             HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)

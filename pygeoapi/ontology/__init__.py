@@ -39,7 +39,7 @@ LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
-SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable ?variable_name' # noqa
+SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable_group ?variable_name' # noqa
 
 SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)' # noqa
 
@@ -79,6 +79,7 @@ def get_mapping(parameter_names: list
     VALUES = ''
     if parameter_names != ['*']:
         values = ' '.join([f'<{p}>' if p.startswith('http') else
+                           f':{p}' if p.startswith('c_') else
                            f'variablename:{p}'.replace(' ', '+')
                            for p in parameter_names])
         VALUES = f'VALUES ?variable_group {{ {values} }}'
@@ -89,8 +90,8 @@ def get_mapping(parameter_names: list
         WHERE {{
             {VALUES}
 
-            ?variable skos:broader* ?variable_group ;
-                      skos:prefLabel ?variable_name .
+            ?variable_group (skos:broader*|^skos:broader*) ?variable ;
+                             skos:prefLabel ?variable_name .
 
             ?collection skos:broader :c_1805cd26 ;
                         skos:hiddenLabel ?collection_id .
@@ -119,6 +120,6 @@ def get_mapping(parameter_names: list
         if pname not in resp[cid]:
             resp[cid][pname] = {}
 
-        resp[cid][pname].update({str(c.variable): str(c.variable_name)})
+        resp[cid][pname].update({str(c.variable_group): str(c.variable_name)})
 
     return resp
