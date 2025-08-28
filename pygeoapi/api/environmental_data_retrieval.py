@@ -389,8 +389,43 @@ def get_collection_edr_query(api: API, request: APIRequest,
             err.http_status_code, headers, request.format,
             err.ogc_exception_code, err.message)
 
-    # TODO: Inject ODM2 Parameter in CovJSON
-    # if data['type'] in ('Coverage', 'CoverageCollection', 'Domain'):
+    if 'onto_mapping' not in locals():
+        onto_mapping = get_mapping(['*'])
+
+    if data.get('parameters') and dataset in onto_mapping:
+        paramgroups = {}
+        params = (
+            data['parameters']
+            if isinstance(data['parameters'], dict) else
+            {p['id']: p for p in data['parameters']}
+        )
+        for k, param in params.items():
+            if k not in onto_mapping[dataset]:
+                continue
+
+            param_groups = onto_mapping[dataset][k]
+            param['narrowerThan'] = [*param_groups]
+
+            for term, title in param_groups.items():
+                # Create new parameeter group
+                if term not in paramgroups:
+                    paramgroups[term] = {
+                        'type': 'ParameterGroup',
+                        'id': term,
+                        'label': title,
+                        'observedProperty': {
+                            'id': term,
+                            'label': {
+                                'en': title
+                            }
+                        },
+                        'members': []
+                    }
+
+                paramgroups[term]['members'].append(k)
+
+        if paramgroups != {}:
+            data['parameterGroups'] = list(paramgroups.values())
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)

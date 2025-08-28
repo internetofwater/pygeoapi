@@ -970,6 +970,8 @@ def describe_collections(api: API, request: APIRequest,
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
         onto_mapping = get_mapping(parameternames)
+    else:
+        onto_mapping = get_mapping(['*'])
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []
@@ -1297,30 +1299,46 @@ def describe_collections(api: API, request: APIRequest,
                         if key not in collection_mapping:
                             continue
 
-                        value['title'] = collection_mapping[key]['title']
-                        key = collection_mapping[key]['key']
-                        LOGGER.info(f'Using ODM2 Variable: {key}')
+                        for id, name in collection_mapping[key].items():
+                            collection['parameter_names'][id] = {
+                                'id': id,
+                                'type': 'Parameter',
+                                'name': name,
+                                'observedProperty': {
+                                    'label': {
+                                        'id': id,
+                                        'en': name
+                                    },
+                                },
+                                'unit': {
+                                    'label': {
+                                        'en': name
+                                    },
+                                    'symbol': {
+                                        'value': value['x-ogc-unit'],
+                                        'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                                    }
+                                }
+                            }
 
-                    collection['parameter_names'][key] = {
-                        'id': key,
-                        'type': 'Parameter',
-                        'name': value['title'],
-                        'observedProperty': {
-                            'label': {
-                                'id': key,
-                                'en': value['title']
+                    else:
+                        collection['parameter_names'][key] = {
+                            'id': key,
+                            'type': 'Parameter',
+                            'name': value['title'],
+                            'observedProperty': {
+                                'label': {
+                                    'id': key,
+                                    'en': value['title']
+                                },
                             },
-                        },
-                        'unit': {
-                            'label': {
-                                'en': value['title']
-                            },
-                            'symbol': {
-                                'value': value['x-ogc-unit'],
-                                'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
+                            'unit': {
+                                'symbol': {
+                                    'value': value['x-ogc-unit'],
+                                    'type': 'http://www.opengis.net/def/uom/UCUM/' # noqa
+                                }
                             }
                         }
-                    }
 
             for qt in p.get_query_types():
                 data_query = {
@@ -1357,6 +1375,11 @@ def describe_collections(api: API, request: APIRequest,
             break
 
         fcm['collections'].append(collection)
+
+    if fcm['collections'] == [] or fcm['links'] == []:
+        msg = 'No matching sources found'
+        return api.get_exception(
+            HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
 
     if dataset is None:
         # TODO: translate
