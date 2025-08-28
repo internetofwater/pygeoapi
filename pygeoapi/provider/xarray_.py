@@ -117,6 +117,10 @@ class XarrayProvider(BaseProvider):
                     elif dtype.name.startswith('str'):
                         dtype = 'string'
 
+                    if not value.attrs.get('units'):
+                        LOGGER.warning(f"Field {key} missing units, will be skipped")
+                        continue
+
                     self._fields[key] = {
                         'type': dtype,
                         'title': value.attrs.get('long_name'),
@@ -398,8 +402,8 @@ class XarrayProvider(BaseProvider):
                 ]
 
                 if self.time_field is not None:
-                    cj['ranges'][key]['axisNames'].append('t')
-                    cj['ranges'][key]['shape'].append(metadata['time_steps'])
+                    cj['ranges'][key]['axisNames'].insert(0, 't')
+                    cj['ranges'][key]['shape'].insert(0, metadata['time_steps']) # noqa
         except IndexError as err:
             LOGGER.warning(err)
             raise ProviderQueryError('Invalid query parameter')
