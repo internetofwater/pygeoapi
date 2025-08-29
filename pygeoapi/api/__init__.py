@@ -1315,6 +1315,7 @@ def describe_collections(api: API, request: APIRequest,
                     if ext_qargs and k in onto_mapping:
 
                         if key not in onto_mapping[k]:
+                            collection['parameter_names'].pop(key)
                             continue
 
                         param_mapping = onto_mapping[k][key]
@@ -1332,9 +1333,17 @@ def describe_collections(api: API, request: APIRequest,
                                             'en': param
                                         }
                                     },
-                                    'members': []
+                                    'members': [] if dataset else {}
                                 }
-                            parameter_groups[param]['members'].append(key)
+
+                            members = parameter_groups[param]['members']
+                            if dataset:
+                                members.append(key)
+                            else:
+                                if k not in members:
+                                    members[k] = [key]
+                                else:
+                                    members[k].append(key)
 
             for qt in p.get_query_types():
                 data_query = {
