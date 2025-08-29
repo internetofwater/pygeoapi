@@ -877,13 +877,14 @@ def describe_collections(api: API, request: APIRequest,
         parameternames = parameternames.split(',')
         onto_mapping = get_mapping(parameternames)
     else:
-        onto_mapping = get_mapping(['*'])
+        onto_mapping = get_mapping()
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []
     if isinstance(providers, str):
         providers = set(providers.split(','))
 
+    parameter_groups = {}
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
@@ -1200,51 +1201,55 @@ def describe_collections(api: API, request: APIRequest,
             if parameters:
                 collection['parameter_names'] = {}
                 for key, value in parameters.items():
-                    if ext_qargs and k in onto_mapping:
-                        collection_mapping = onto_mapping[k]
-                        if key not in collection_mapping:
-                            continue
-
-                        for id, name in collection_mapping[key].items():
-                            collection['parameter_names'][id] = {
-                                'id': id,
-                                'type': 'Parameter',
-                                'name': name,
-                                'observedProperty': {
-                                    'label': {
-                                        'id': id,
-                                        'en': name
-                                    },
-                                },
-                                'unit': {
-                                    'label': {
-                                        'en': name
-                                    },
-                                    'symbol': {
-                                        'value': value['x-ogc-unit'],
-                                        'type': 'http://www.opengis.net/def/uom/UCUM/'  # noqa
-                                    }
-                                }
-                            }
-
-                    else:
-                        collection['parameter_names'][key] = {
-                            'id': key,
-                            'type': 'Parameter',
-                            'name': value['title'],
-                            'observedProperty': {
-                                'label': {
-                                    'id': key,
-                                    'en': value['title']
-                                },
+                    collection['parameter_names'][key] = {
+                        'id': key,
+                        'type': 'Parameter',
+                        'name': value['title'],
+                        'observedProperty': {
+                            'label': {
+                                'id': key,
+                                'en': value['title']
                             },
-                            'unit': {
-                                'symbol': {
-                                    'value': value['x-ogc-unit'],
-                                    'type': 'http://www.opengis.net/def/uom/UCUM/' # noqa
-                                }
+                        },
+                        'unit': {
+                            'symbol': {
+                                'value': value['x-ogc-unit'],
+                                'type': 'http://www.opengis.net/def/uom/UCUM/' # noqa
                             }
                         }
+                    }
+                    if ext_qargs and k in onto_mapping:
+
+                        if key not in onto_mapping[k]:
+                            collection['parameter_names'].pop(key)
+                            continue
+
+                        param_mapping = onto_mapping[k][key]
+                        collection['parameter_names'][key]['narrowerThan'] \
+                            = [*param_mapping]
+                        for param, id in param_mapping.items():
+                            if param not in parameter_groups:
+                                parameter_groups[param] = {
+                                    'type': 'ParameterGroup',
+                                    'id': id,
+                                    'label': param,
+                                    'observedProperty': {
+                                        'id': param,
+                                        'label': {
+                                            'en': param
+                                        }
+                                    },
+                                    'members': [] if dataset else {}
+                                }
+
+                            members = parameter_groups[param]['members']
+                            if dataset:
+                                members.append(key)
+                            else:
+                                if k not in members:
+                                    members[k] = [key]
+                                else:
+                                    members[k].append(key)
 
             for qt in p.get_query_types():
                 data_query = {
@@ -1286,6 +1291,9 @@ def describe_collections(api: API, request: APIRequest,
         msg = 'No matching sources found'
         return api.get_exception(
             HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
+
+    if parameter_groups != {}:
+        fcm['parameterGroups'] = [*parameter_groups.values()]
 
     if dataset is None:
         # TODO: translate

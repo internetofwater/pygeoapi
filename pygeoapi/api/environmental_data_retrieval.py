@@ -394,7 +394,7 @@ def get_collection_edr_query(api: API, request: APIRequest,
             err.ogc_exception_code, err.message)
 
     if 'onto_mapping' not in locals():
-        onto_mapping = get_mapping(['*'])
+        onto_mapping = get_mapping()
 
     if data.get('parameters') and dataset in onto_mapping:
         paramgroups = {}
@@ -410,17 +410,17 @@ def get_collection_edr_query(api: API, request: APIRequest,
             param_groups = onto_mapping[dataset][k]
             param['narrowerThan'] = [*param_groups]
 
-            for term, title in param_groups.items():
+            for term, id in param_groups.items():
                 # Create new parameeter group
                 if term not in paramgroups:
                     paramgroups[term] = {
                         'type': 'ParameterGroup',
-                        'id': term,
-                        'label': title,
+                        'id': id,
+                        'label': term,
                         'observedProperty': {
-                            'id': term,
+                            'id': id,
                             'label': {
-                                'en': title
+                                'en': term
                             }
                         },
                         'members': []
