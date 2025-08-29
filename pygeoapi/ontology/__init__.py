@@ -39,7 +39,7 @@ LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
-SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?variable_group ?variable_name' # noqa
+SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group' # noqa
 
 SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)' # noqa
 
@@ -64,7 +64,7 @@ def get_graph() -> Graph:
     return Graph().parse(GRAPH)
 
 
-def get_mapping(parameter_names: list
+def get_mapping(parameter_names: list = ['*']
                 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collectionad and parameters
@@ -76,13 +76,16 @@ def get_mapping(parameter_names: list
     :returns: `dict` of ontology mapping
     """
     resp = {}
-    VALUES = ''
+
     if parameter_names != ['*']:
-        values = ' '.join([f'<{p}>' if p.startswith('http') else
-                           f':{p}' if p.startswith('c_') else
-                           f'variablename:{p}'.replace(' ', '+')
+        values = ' '.join([f'"{p}"@en'
                            for p in parameter_names])
-        VALUES = f'VALUES ?variable_group {{ {values} }}'
+        VALUES = f'VALUES ?concept_name {{ {values} }}'
+    else:
+        VALUES = '''
+            ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
+                     skos:prefLabel ?concept_name .
+        '''
 
     query = f'''
         {PREFIXES}
@@ -90,15 +93,12 @@ def get_mapping(parameter_names: list
         WHERE {{
             {VALUES}
 
-            ?variable_group (skos:broader*|^skos:broader*) ?variable ;
-                             skos:prefLabel ?variable_name .
+        ?concept_group skos:inScheme :conceptScheme_8257cf0e ;
+                       skos:broader*/skos:prefLabel ?concept_name .
 
-            ?collection skos:broader :c_1805cd26 ;
-                        skos:hiddenLabel ?collection_id .
-
-            ?parameter skos:hiddenLabel ?parameter_id ;
-                       skos:broader+ ?collection ;
-                       {SKOS_ANYMATCH} ?variable .
+        ?match (skos:exactMatch|^skos:exactMatch) ?concept_group ;
+                    skos:broader/skos:hiddenLabel ?collection_id ;
+                    skos:hiddenLabel ?parameter_id .
         }}
     '''
 
@@ -120,6 +120,6 @@ def get_mapping(parameter_names: list
         if pname not in resp[cid]:
             resp[cid][pname] = {}
 
-        resp[cid][pname].update({str(c.variable_group): str(c.variable_name)})
+        resp[cid][pname].update({str(c.concept_name): str(c.concept_group)})
 
     return resp

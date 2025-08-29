@@ -130,14 +130,14 @@ case ${entry_cmd} in
         start_gunicorn
         ;;
 
-    # Run pygeoapi server with hot reload
-    run-with-hot-reload)
-        # Lock all Python files (for gunicorn hot reload), if running with user root
-        if [[ $(id -u) -eq 0 ]]
-        then
-            echo "Running pygeoapi as root"
-            find . -type f -name "*.py" | xargs chmod 0444
-        fi
+	# Run pygeoapi server with hot reload
+	run-with-hot-reload)
+		# Lock all Python files (for gunicorn hot reload), if running with user root
+		if [[ $(id -u) -eq 0 ]]
+		then
+			echo "Running pygeoapi as root"
+			find . -type f -name "*.py" | xargs chmod 0444
+		fi
 
         # Start with hot reload options
         start_gunicorn --reload --reload-extra-file ${PYGEOAPI_CONFIG}
