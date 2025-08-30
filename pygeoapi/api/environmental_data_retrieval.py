@@ -520,6 +520,8 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
     collections = filter_dict_by_key_value(cfg['resources'],
                                            'type', 'collection')
 
+    onto_mapping = get_mapping()
+
     for k, v in get_visible_collections(cfg).items():
         edr_extension = filter_providers_by_type(
             collections[k]['providers'], 'edr')
@@ -528,6 +530,26 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
             collection_name_path = f'/collections/{k}'
 
             ep = load_plugin('provider', edr_extension)
+
+            if k in onto_mapping:
+                params = list(
+                    {next(iter(k))for k in onto_mapping[k].values()}
+                )
+                parameter = {
+                    'name': 'parameter-name',
+                    'in': 'query',
+                    'schema': {
+                        'allOf': [
+                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"}, # noqa
+                            {
+                                'type': 'string',
+                                'enum': params
+                            }
+                        ]
+                    }
+                }
+            else:
+                parameter = {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"},  # noqa
 
             edr_query_endpoints = []
 
@@ -574,8 +596,8 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'operationId': eqe['op_id'],
                         'parameters': [
                             spatial_parameter,
+                            parameter,
                             {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqa
-                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"},  # noqa
                             {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/z.yaml"},  # noqa
                             {'$ref': '#/components/parameters/f'}
                         ],
@@ -639,8 +661,9 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'tags': [k],
                         'operationId': f'getLocations{k.capitalize()}',
                         'parameters': [
-                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/bbox.yaml"},  # noqa
+                            parameter,
                             {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqa
+                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/bbox.yaml"},  # noqa
                             {'$ref': '#/components/parameters/f'}
                         ],
                         'responses': {
@@ -657,9 +680,9 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'tags': [k],
                         'operationId': f'getLocation{k.capitalize()}',
                         'parameters': [
+                            parameter,
                             {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/locationId.yaml"},  # noqa
-                            {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqa
-                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"},  # noqa
+                            {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqaa
                             {'$ref': '#/components/parameters/f'}
                         ],
                         'responses': {

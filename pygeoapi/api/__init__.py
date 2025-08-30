@@ -1312,8 +1312,7 @@ def describe_collections(api: API, request: APIRequest,
                             }
                         }
                     }
-                    if ext_qargs and k in onto_mapping:
-
+                    if k in onto_mapping:
                         if key not in onto_mapping[k]:
                             collection['parameter_names'].pop(key)
                             continue

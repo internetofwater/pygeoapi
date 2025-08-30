@@ -46,6 +46,7 @@ import yaml
 from pygeoapi import l10n
 from pygeoapi.api import all_apis
 from pygeoapi.models.openapi import OAPIFormat
+from pygeoapi.ontology import get_mapping
 from pygeoapi.util import (filter_dict_by_key_value, to_json, yaml_load,
                            get_api_rules, get_base_url, SCHEMASDIR)
 
@@ -335,6 +336,50 @@ def get_oas_30(cfg: dict, fail_on_invalid_collection: bool = True) -> dict:
         }
     }
 
+    onto_mapping = get_mapping()
+    params = set()
+    providers = set()
+    for k, v in get_visible_collections(cfg).items():
+        if k in onto_mapping:
+            params_ = list(
+                {next(iter(k))for k in onto_mapping[k].values()}
+            )
+            params.update(params_)
+
+        if v.get('provider-name'):
+            providers.update(v['provider-name'])
+
+    parameter = {
+        'name': 'parameter-name',
+        'description': 'Parameter name or group',
+        'in': 'query',
+        'schema': {
+            'allOf': [
+                {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"}, # noqa
+                {
+                    'type': 'string',
+                    'enum': list(params)
+                }
+            ]
+        }
+    }
+
+    provider = {
+        'name': 'provider-name',
+        'in': 'query',
+        'description': 'Provider or the data',
+        'required': False,
+        'schema': {
+            'type': 'array',
+            'items': {
+                'type': 'string',
+                'enum': list(providers),
+            },
+            'style': 'form',
+            'explode': False
+        },
+    }
+
     paths['/collections'] = {
         'get': {
             'summary': 'Collections',
@@ -342,8 +387,9 @@ def get_oas_30(cfg: dict, fail_on_invalid_collection: bool = True) -> dict:
             'tags': ['server'],
             'operationId': 'getCollections',
             'parameters': [
+                provider, parameter,
                 {'$ref': '#/components/parameters/f'},
-                {'$ref': '#/components/parameters/lang'}
+                {'$ref': '#/components/parameters/lang'},
             ],
             'responses': {
                 '200': {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/responses/LandingPage"},  # noqa
