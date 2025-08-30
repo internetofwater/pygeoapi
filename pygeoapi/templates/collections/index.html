@@ -58,4 +58,37 @@
               </tbody>
             </table>
     </section>
+    {% if data['parameterGroups'] %}
+    <section id="parameter-groups">
+      <h1>{% trans %}Parameter groups in this service{% endtrans %}</h1>
+        <table class="table table-striped table-bordered">
+        {% for pg in data['parameterGroups'] -%}
+        <tr>
+            <td>
+              <details>
+                <summary><strong>{{ pg['label'] }}</strong> ({{ pg.members|length }} matches)</summary>
+                <table style="background: #FFF" class="table table-condensed mb-0">
+                {% for k, v in pg.members.items() %}
+                  <tr>
+                    <td>
+                      <details>
+                        <summary><strong>{{ k }}</strong> ({{ v|length }} matches)</summary>
+                        <ul>
+                        {% for i in v %}
+                        <li>{{ i }}</li>
+                        {% endfor %}
+                        </ul>  
+                      </details>
+                    </td>
+                  </tr>
+                {% endfor %}
+                </table>
+              </details>
+            </td>
+        </tr>
+        {% endfor %}
+        </table>
+    </section>
+    {% endif %}
+    <section
 {% endblock %}
