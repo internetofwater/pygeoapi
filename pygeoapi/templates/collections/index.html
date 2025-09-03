@@ -72,8 +72,8 @@
                   <tr>
                     <td>
                       <details>
-                        <summary><strong>{{ k }}</strong> ({{ v|length }} matches)</summary>
-                        <ul>
+                        <summary><strong>{{ config.resources[k].title | striptags }}</strong> ({{ v|length }} matches)</summary>
+                        <ul class="mb-0">
                         {% for i in v %}
                         <li>{{ i }}</li>
                         {% endfor %}
