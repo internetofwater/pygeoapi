@@ -78,9 +78,19 @@ def get_mapping(parameter_names: list = ['*']
     resp = {}
 
     if parameter_names != ['*']:
-        values = ' '.join([f'"{p}"@en'
-                           for p in parameter_names])
-        VALUES = f'VALUES ?concept_name {{ {values} }}'
+        values = ' '.join([f'<{p}>'
+                           for p in parameter_names
+                           if p.startswith('http')])
+        value_names = ' '.join([f'"{p}"@en'
+                                for p in parameter_names
+                                if not p.startswith('http')])
+
+        if values:
+            VALUES = f'VALUES ?concept {{ {values} }}'
+
+        elif value_names:
+            VALUES = f'VALUES ?concept_name {{ {value_names} }}\n'
+
     else:
         VALUES = '''
             ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
