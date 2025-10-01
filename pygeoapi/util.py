@@ -723,7 +723,7 @@ def get_supported_crs_list(config: dict, default_crs_list: list) -> list:
     return supported_crs_list
 
 
-def get_crs_from_uri(uri: str) -> pyproj.CRS:
+def get_crs_from_uri(uri: Union[str, pyproj.CRS]) -> pyproj.CRS:
     """
     Get a `pyproj.CRS` instance from a CRS URI.
     Author: @MTachon
@@ -738,6 +738,9 @@ def get_crs_from_uri(uri: str) -> pyproj.CRS:
     :returns: `pyproj.CRS` instance matching the input URI.
     :rtype: `pyproj.CRS`
     """
+
+    if isinstance(uri, pyproj.CRS):
+        return uri
 
     # normalize the input `uri` to a URL first
     url = uri.replace(
@@ -871,7 +874,7 @@ def crs_transform_feature(feature, transform_func):
         )
 
 
-def transform_bbox(bbox: list, from_crs: str, to_crs: str) -> list:
+def transform_bbox(bbox: list, from_crs: Union[str, pyproj.CRS], to_crs: Union[str, pyproj.CRS]) -> list:
     """
     helper function to transform a bounding box (bbox) from
     a source to a target CRS. CRSs in URI str format.
