@@ -46,24 +46,26 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SchemaType(Enum):
-    item = "item"
-    create = "create"
-    update = "update"
-    replace = "replace"
+    item = 'item'
+    create = 'create'
+    update = 'update'
+    replace = 'replace'
 
 
 # All the potential properties on a field
 # as defined by the OGC API features spec
 FieldProperties = TypedDict(
-    "FieldProperties",
+    'FieldProperties',
     {
-        "type": Literal["string", "number", "integer", "boolean", "object", "array"],
-        "title": str,
-        "description": str,
-        "format": NotRequired[str],
-        "x-ogc-unit": NotRequired[str],
-        "x-ogc-role": NotRequired[str],
-        "enum": NotRequired[list[str]],
+        'type': Literal[
+            'string', 'number', 'integer', 'boolean', 'object', 'array'
+        ],
+        'title': str,
+        'description': str,
+        'format': NotRequired[str],
+        'x-ogc-unit': NotRequired[str],
+        'x-ogc-role': NotRequired[str],
+        'enum': NotRequired[list[str]],
     },
 )
 
@@ -71,6 +73,7 @@ FieldProperties = TypedDict(
 # Dict type representing a mapping of the field
 # to its associated data type
 FieldMapping = dict[str, FieldProperties]
+
 
 class ProviderDictBase(TypedDict):
     name: str
@@ -96,22 +99,22 @@ class BaseProvider:
         """
 
         try:
-            self.name: str  = provider_def["name"]
-            self.type: str = provider_def["type"]
-            self.data: str= provider_def["data"]
+            self.name: str = provider_def['name']
+            self.type: str = provider_def['type']
+            self.data: str = provider_def['data']
         except KeyError:
-            raise RuntimeError("name/type/data are required")
+            raise RuntimeError('name/type/data are required')
 
-        self.editable: bool = provider_def.get("editable", False)
-        self.options = provider_def.get("options")
-        self.id_field: str | None = provider_def.get("id_field")
-        self.uri_field: str | None = provider_def.get("uri_field")
-        self.x_field: str | None = provider_def.get("x_field")
-        self.y_field: str | None = provider_def.get("y_field")
-        self.time_field: str | None = provider_def.get("time_field")
-        self.title_field: str | None = provider_def.get("title_field")
-        self.properties: list[str] = provider_def.get("properties", [])
-        self.file_types: list[str] = provider_def.get("file_types", [])
+        self.editable: bool = provider_def.get('editable', False)
+        self.options = provider_def.get('options')
+        self.id_field: str | None = provider_def.get('id_field')
+        self.uri_field: str | None = provider_def.get('uri_field')
+        self.x_field: str | None = provider_def.get('x_field')
+        self.y_field: str | None = provider_def.get('y_field')
+        self.time_field: str | None = provider_def.get('time_field')
+        self.title_field: str | None = provider_def.get('title_field')
+        self.properties: list[str] = provider_def.get('properties', [])
+        self.file_types: list[str] = provider_def.get('file_types', [])
         self._fields: FieldMapping = {}
         self.filename: str | None = None
 
@@ -144,7 +147,7 @@ class BaseProvider:
                   associated JSON Schema definitions)
         """
 
-        if hasattr(self, "_fields"):
+        if hasattr(self, '_fields'):
             return self._fields
         else:
             return self.get_fields()
@@ -276,104 +279,104 @@ class BaseProvider:
 
         identifier2 = None
 
-        LOGGER.debug("Loading data")
-        LOGGER.debug(f"Data: {item}")
+        LOGGER.debug('Loading data')
+        LOGGER.debug(f'Data: {item}')
         try:
             json_data = json.loads(item)
         except TypeError as err:
             LOGGER.error(err)
-            raise ProviderInvalidDataError("Invalid data")
+            raise ProviderInvalidDataError('Invalid data')
         except json.decoder.JSONDecodeError as err:
             LOGGER.error(err)
-            raise ProviderInvalidDataError("Invalid JSON data")
+            raise ProviderInvalidDataError('Invalid JSON data')
 
-        LOGGER.debug("Detecting identifier")
+        LOGGER.debug('Detecting identifier')
         if identifier is not None:
             identifier2 = identifier
         else:
             try:
-                identifier2 = json_data["id"]
+                identifier2 = json_data['id']
             except KeyError:
-                LOGGER.debug("Cannot find id; trying properties.identifier")
+                LOGGER.debug('Cannot find id; trying properties.identifier')
                 try:
-                    identifier2 = json_data["properties"]["identifier"]
+                    identifier2 = json_data['properties']['identifier']
                 except KeyError:
-                    LOGGER.debug("Cannot find properties.identifier")
+                    LOGGER.debug('Cannot find properties.identifier')
 
         if identifier2 is None and not accept_missing_identifier:
-            msg = "Missing identifier (id or properties.identifier)"
+            msg = 'Missing identifier (id or properties.identifier)'
             LOGGER.error(msg)
             raise ProviderInvalidDataError(msg)
 
-        if "geometry" not in json_data or "properties" not in json_data:
-            msg = "Missing core GeoJSON geometry or properties"
+        if 'geometry' not in json_data or 'properties' not in json_data:
+            msg = 'Missing core GeoJSON geometry or properties'
             LOGGER.error(msg)
             raise ProviderInvalidDataError(msg)
 
         if identifier2 is not None and raise_if_exists:
-            LOGGER.debug("Querying database whether item exists")
+            LOGGER.debug('Querying database whether item exists')
             try:
                 _ = self.get(identifier2)
 
-                msg = "record already exists"
+                msg = 'record already exists'
                 LOGGER.error(msg)
                 raise ProviderInvalidDataError(msg)
             except ProviderItemNotFoundError:
-                LOGGER.debug("record does not exist")
+                LOGGER.debug('record does not exist')
 
         return identifier2, json_data
 
     def __repr__(self):
-        return f"<BaseProvider> {self.type}"
+        return f'<BaseProvider> {self.type}'
 
 
 class ProviderGenericError(GenericError):
     """provider generic error"""
 
-    default_msg = "generic error (check logs)"
+    default_msg = 'generic error (check logs)'
 
 
 class ProviderConnectionError(ProviderGenericError):
     """provider connection error"""
 
-    default_msg = "connection error (check logs)"
+    default_msg = 'connection error (check logs)'
 
 
 class ProviderTypeError(ProviderGenericError):
     """provider type error"""
 
-    default_msg = "invalid provider type"
+    default_msg = 'invalid provider type'
     http_status_code = HTTPStatus.BAD_REQUEST
 
 
 class ProviderInvalidQueryError(ProviderGenericError):
     """provider invalid query error"""
 
-    ogc_exception_code = "InvalidQuery"
+    ogc_exception_code = 'InvalidQuery'
     http_status_code = HTTPStatus.BAD_REQUEST
-    default_msg = "query error"
+    default_msg = 'query error'
 
 
 class ProviderQueryError(ProviderGenericError):
     """provider query error"""
 
-    default_msg = "query error (check logs)"
+    default_msg = 'query error (check logs)'
 
 
 class ProviderItemNotFoundError(ProviderGenericError):
     """provider item not found query error"""
 
-    ogc_exception_code = "NotFound"
+    ogc_exception_code = 'NotFound'
     http_status_code = HTTPStatus.NOT_FOUND
-    default_msg = "identifier not found"
+    default_msg = 'identifier not found'
 
 
 class ProviderNoDataError(ProviderGenericError):
     """provider no data error"""
 
-    ogc_exception_code = "InvalidParameterValue"
+    ogc_exception_code = 'InvalidParameterValue'
     http_status_code = HTTPStatus.NO_CONTENT
-    default_msg = "No data found"
+    default_msg = 'No data found'
 
 
 class ProviderNotFoundError(ProviderGenericError):
