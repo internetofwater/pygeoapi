@@ -117,7 +117,7 @@ class BaseProvider:
         self.include_extra_query_parameters: bool = provider_def.get(
             'include_extra_query_parameters', False
         )
-        self._fields: FieldMapping = {}
+        self._fields: dict = {}
         self.filename: str | None = None
 
         # for coverage providers
@@ -125,7 +125,7 @@ class BaseProvider:
         self.crs = None
         self.num_bands = None
 
-    def get_fields(self) -> FieldMapping:
+    def get_fields(self) -> dict:
         """
         Get provider field information (names, types)
 
@@ -138,7 +138,7 @@ class BaseProvider:
         raise NotImplementedError()
 
     @property
-    def fields(self) -> FieldMapping:
+    def fields(self) -> dict:
         """
         Store provider field information (names, types)
 

@@ -114,7 +114,7 @@ class BaseEDRProvider(BaseProvider):
 
         return NotImplementedError()
 
-    def get_fields(self) -> EDRFieldsMapping:  # pyright: ignore[reportIncompatibleMethodOverride] # noqa
+    def get_fields(self) -> dict:
         """
         Get provider field information (names, types)
 
