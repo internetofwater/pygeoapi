@@ -31,6 +31,14 @@ import json
 import logging
 from enum import Enum
 from http import HTTPStatus
+from typing import Literal, Optional, TypedDict
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
+
 
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_crs
 from pygeoapi.error import GenericError
@@ -45,10 +53,45 @@ class SchemaType(Enum):
     replace = 'replace'
 
 
+# All the potential properties on a field
+# as defined by the OGC API features spec
+FieldProperties = TypedDict(
+    'FieldProperties',
+    {
+        'type': Literal[
+            'string', 'number', 'integer', 'boolean', 'object', 'array'
+        ],
+        'title': str,
+        'description': str,
+        'format': NotRequired[str],
+        'x-ogc-unit': NotRequired[str],
+        'x-ogc-role': NotRequired[str],
+        'enum': NotRequired[list[str]],
+    },
+)
+
+
+# Dict type representing a mapping of the field
+# to its associated data type
+FieldMapping = dict[str, FieldProperties]
+
+
+# A type representing the requirements of the provider config
+class ProviderDictBase(TypedDict):
+    name: str
+    type: str
+    data: str
+
+
+# TypedDict that allows extra keys by setting total=False
+class ProviderDict(ProviderDictBase, total=False):
+    pass
+
+
 class BaseProvider:
     """generic Provider ABC"""
 
-    def __init__(self, provider_def):
+    def __init__(self, provider_def: ProviderDict):
         """
         Initialize object
 
@@ -58,26 +101,27 @@ class BaseProvider:
         """
 
         try:
-            self.name = provider_def['name']
-            self.type = provider_def['type']
-            self.data = provider_def['data']
+            self.name: str = provider_def['name']
+            self.type: str = provider_def['type']
+            self.data: str = provider_def['data']
         except KeyError:
             raise RuntimeError('name/type/data are required')
 
-        self.editable = provider_def.get('editable', False)
+        self.editable: bool = provider_def.get('editable', False)
         self.options = provider_def.get('options')
-        self.id_field = provider_def.get('id_field')
-        self.uri_field = provider_def.get('uri_field')
-        self.x_field = provider_def.get('x_field')
-        self.y_field = provider_def.get('y_field')
-        self.z_field = provider_def.get('z_field')
-        self.time_field = provider_def.get('time_field')
-        self.title_field = provider_def.get('title_field')
-        self.properties = provider_def.get('properties', [])
-        self.file_types = provider_def.get('file_types', [])
-        self.include_extra_query_parameters = provider_def.get('include_extra_query_parameters', False)  # noqa
-        self._fields = {}
-        self.filename = None
+        self.id_field: str | None = provider_def.get('id_field')
+        self.uri_field: str | None = provider_def.get('uri_field')
+        self.x_field: str | None = provider_def.get('x_field')
+        self.y_field: str | None = provider_def.get('y_field')
+        self.time_field: str | None = provider_def.get('time_field')
+        self.title_field: str | None = provider_def.get('title_field')
+        self.properties: list[str] = provider_def.get('properties', [])
+        self.file_types: list[str] = provider_def.get('file_types', [])
+        self.include_extra_query_parameters: bool = provider_def.get(
+            'include_extra_query_parameters', False
+        )
+        self._fields: FieldMapping = {}
+        self.filename: str | None = None
 
         # CRS properties
         storage_crs_uri = provider_def.get('storage_crs', DEFAULT_STORAGE_CRS)
@@ -88,7 +132,7 @@ class BaseProvider:
         self.crs = None
         self.num_bands = None
 
-    def get_fields(self):
+    def get_fields(self) -> FieldMapping:
         """
         Get provider field information (names, types)
 
@@ -101,7 +145,7 @@ class BaseProvider:
         raise NotImplementedError()
 
     @property
-    def fields(self) -> dict:
+    def fields(self) -> FieldMapping:
         """
         Store provider field information (names, types)
 
@@ -117,7 +161,7 @@ class BaseProvider:
         else:
             return self.get_fields()
 
-    def get_schema(self, schema_type: SchemaType = SchemaType.item):
+    def get_schema(self, schema_type: SchemaType = SchemaType.item) -> tuple:
         """
         Get provider schema model
 
@@ -129,7 +173,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def get_data_path(self, baseurl, urlpath, dirpath):
+    def get_data_path(self, baseurl: str, urlpath: str, dirpath: str) -> dict:
         """
         Gets directory listing or file description or raw file dump
 
@@ -152,7 +196,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def get_domains(self, properties=[], current=False):
+    def get_domains(self, properties: list[str] = [], current=False):
         """
         Get domains from dataset
 
@@ -175,7 +219,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def get(self, identifier, **kwargs):
+    def get(self, identifier: str, **kwargs):
         """
         query the provider by id
 
@@ -186,7 +230,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def create(self, item):
+    def create(self, item: dict) -> str:
         """
         Create a new item
 
@@ -197,7 +241,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def update(self, identifier, item):
+    def update(self, identifier: str, item: dict) -> bool:
         """
         Updates an existing item
 
@@ -209,7 +253,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def delete(self, identifier):
+    def delete(self, identifier: str) -> bool:
         """
         Deletes an existing item
 
@@ -220,9 +264,13 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def _load_and_prepare_item(self, item, identifier=None,
-                               accept_missing_identifier=False,
-                               raise_if_exists=True):
+    def _load_and_prepare_item(
+        self,
+        item: str,
+        identifier: Optional[str] = None,
+        accept_missing_identifier=False,
+        raise_if_exists=True,
+    ):
         """
         Helper function to load a record, detect its idenfier and prepare
         a record item
@@ -239,7 +287,6 @@ class BaseProvider:
         """
 
         identifier2 = None
-        msg = None
 
         LOGGER.debug('Loading data')
         LOGGER.debug(f'Data: {item}')
@@ -247,13 +294,10 @@ class BaseProvider:
             json_data = json.loads(item)
         except TypeError as err:
             LOGGER.error(err)
-            msg = 'Invalid data'
+            raise ProviderInvalidDataError('Invalid data')
         except json.decoder.JSONDecodeError as err:
             LOGGER.error(err)
-            msg = 'Invalid JSON data'
-
-        if msg is not None:
-            raise ProviderInvalidDataError(msg)
+            raise ProviderInvalidDataError('Invalid JSON data')
 
         LOGGER.debug('Detecting identifier')
         if identifier is not None:
@@ -297,34 +341,40 @@ class BaseProvider:
 
 class ProviderGenericError(GenericError):
     """provider generic error"""
+
     default_msg = 'generic error (check logs)'
 
 
 class ProviderConnectionError(ProviderGenericError):
     """provider connection error"""
+
     default_msg = 'connection error (check logs)'
 
 
 class ProviderTypeError(ProviderGenericError):
     """provider type error"""
+
     default_msg = 'invalid provider type'
     http_status_code = HTTPStatus.BAD_REQUEST
 
 
 class ProviderInvalidQueryError(ProviderGenericError):
     """provider invalid query error"""
+
     ogc_exception_code = 'InvalidQuery'
     http_status_code = HTTPStatus.BAD_REQUEST
-    default_msg = "query error"
+    default_msg = 'query error'
 
 
 class ProviderQueryError(ProviderGenericError):
     """provider query error"""
+
     default_msg = 'query error (check logs)'
 
 
 class ProviderItemNotFoundError(ProviderGenericError):
     """provider item not found query error"""
+
     ogc_exception_code = 'NotFound'
     http_status_code = HTTPStatus.NOT_FOUND
     default_msg = 'identifier not found'
@@ -332,6 +382,7 @@ class ProviderItemNotFoundError(ProviderGenericError):
 
 class ProviderNoDataError(ProviderGenericError):
     """provider no data error"""
+
     ogc_exception_code = 'InvalidParameterValue'
     http_status_code = HTTPStatus.NO_CONTENT
     default_msg = 'No data found'
@@ -339,21 +390,25 @@ class ProviderNoDataError(ProviderGenericError):
 
 class ProviderNotFoundError(ProviderGenericError):
     """provider not found error"""
+
     pass
 
 
 class ProviderVersionError(ProviderGenericError):
     """provider incorrect version error"""
+
     pass
 
 
 class ProviderInvalidDataError(ProviderGenericError):
     """provider invalid data error"""
+
     pass
 
 
 class ProviderRequestEntityTooLargeError(ProviderGenericError):
     """provider request entity too large error"""
+
     http_status_code = HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     def __init__(self, msg=None, *args, user_msg=None) -> None:
