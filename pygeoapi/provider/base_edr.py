@@ -114,15 +114,6 @@ class BaseEDRProvider(BaseProvider):
 
         return NotImplementedError()
 
-    def get_fields(self) -> dict:
-        """
-        Get provider field information (names, types)
-
-        :returns: `dict` of fields
-        """
-
-        raise NotImplementedError()
-
     def get_query_types(self) -> list[str]:
         """
         Provide supported query types
