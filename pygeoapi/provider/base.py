@@ -116,6 +116,9 @@ class BaseProvider:
         self.title_field: str | None = provider_def.get('title_field')
         self.properties: list[str] = provider_def.get('properties', [])
         self.file_types: list[str] = provider_def.get('file_types', [])
+        self.include_extra_query_parameters: bool = provider_def.get(
+            'include_extra_query_parameters', False
+        ) 
         self._fields: FieldMapping = {}
         self.filename: str | None = None
 
