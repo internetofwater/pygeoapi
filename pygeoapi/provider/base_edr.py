@@ -28,14 +28,39 @@
 # =================================================================
 
 import logging
+from typing import TypedDict
 
-from pygeoapi.provider.base import BaseProvider, ProviderInvalidDataError
+from pygeoapi.provider.base import (
+    BaseProvider,
+    ProviderDict,
+    ProviderInvalidDataError,
+)
 
 LOGGER = logging.getLogger(__name__)
 
-EDR_QUERY_TYPES = ['position', 'radius', 'area', 'cube',
-                   'trajectory', 'corridor', 'items',
-                   'locations', 'instances']
+EDR_QUERY_TYPES = [
+    'position',
+    'radius',
+    'area',
+    'cube',
+    'trajectory',
+    'corridor',
+    'items',
+    'locations',
+    'instances',
+]
+
+EDRField = TypedDict(
+    'EDRField',
+    {
+        'type': str,
+        'title': str,
+        'description': str,
+        'x-ogc-unit': str,
+    },
+)
+
+EDRFieldsMapping = dict[str, EDRField]
 
 
 class BaseEDRProvider(BaseProvider):
@@ -43,7 +68,7 @@ class BaseEDRProvider(BaseProvider):
 
     query_types = []
 
-    def __init__(self, provider_def):
+    def __init__(self, provider_def: ProviderDict):
         """
         Initialize object
 
@@ -54,18 +79,19 @@ class BaseEDRProvider(BaseProvider):
 
         BaseProvider.__init__(self, provider_def)
 
-#        self.instances = []
+    #        self.instances = []
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
         cls.query_types = [
-            name for name, function in cls.__dict__.items()
+            name
+            for name, function in cls.__dict__.items()
             if name in EDR_QUERY_TYPES and callable(function)
         ]
 
         if not cls.query_types:
-            msg = f"{cls.__name__} does not implement any query types"
+            msg = f'{cls.__name__} does not implement any query types'
             LOGGER.error(msg)
             raise ProviderInvalidDataError(msg)
 
@@ -88,7 +114,16 @@ class BaseEDRProvider(BaseProvider):
 
         return NotImplementedError()
 
-    def get_query_types(self):
+    def get_fields(self) -> EDRFieldsMapping:  # pyright: ignore[reportIncompatibleMethodOverride] # noqa
+        """
+        Get provider field information (names, types)
+
+        :returns: `dict` of fields
+        """
+
+        raise NotImplementedError()
+
+    def get_query_types(self) -> list[str]:
         """
         Provide supported query types
 
