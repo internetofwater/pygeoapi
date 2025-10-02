@@ -31,7 +31,7 @@ import json
 import logging
 from enum import Enum
 from http import HTTPStatus
-from typing import Literal, Optional, TypedDict
+from typing import Any, Literal, Optional, TypedDict
 import sys
 
 if sys.version_info >= (3, 11):
@@ -75,21 +75,19 @@ FieldProperties = TypedDict(
 # to its associated data type
 FieldMapping = dict[str, FieldProperties]
 
-
-# A type representing the requirements of the provider config
-class ProviderDictBase(TypedDict):
-    name: str
-    type: str
-    data: str
-
-
-# TypedDict that allows extra keys by setting total=False
-class ProviderDict(ProviderDictBase, total=False):
-    pass
+# A type representing the provider config;
+# since typed dicts can't be extended with arbitrary keys
+# we need to just use a generic dict; in the future in Python 3.15
+# this can be replaced with a TypedDict using extra arbitrary keys
+type ProviderDict = dict[str, Any]
 
 
 class BaseProvider:
     """generic Provider ABC"""
+
+    name: str
+    type: str
+    data: str
 
     def __init__(self, provider_def: ProviderDict):
         """
