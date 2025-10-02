@@ -74,7 +74,7 @@ FieldProperties = TypedDict(
 # to its associated data type
 FieldMapping = dict[str, FieldProperties]
 
-
+# A type representing the requirements of the provider config
 class ProviderDictBase(TypedDict):
     name: str
     type: str
