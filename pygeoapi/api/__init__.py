@@ -103,8 +103,7 @@ FORMAT_TYPES = OrderedDict((
 ))
 
 #: Digest integrity methods supported
-DIGEST_METHODS = ['sha1', 'sha256', 'sha384', 'sha512',
-                  'sha3-256', 'sha3-384', 'sha3-512']
+DIGEST_METHODS = hashlib.algorithms_available
 
 #: Locale used for system responses (e.g. exceptions)
 SYSTEM_LOCALE = l10n.Locale('en', 'US')
