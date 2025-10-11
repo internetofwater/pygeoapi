@@ -401,7 +401,8 @@ class APIRequest:
 
         for hash_method in hash_methods:
             hash_method = hash_method.lower()
-            if hash_method in DIGEST_METHODS:
+            safe_hash = hash_method.replace('-', '_')
+            if hash_method in DIGEST_METHODS or safe_hash in DIGEST_METHODS:
                 return hash_method
 
     @property
