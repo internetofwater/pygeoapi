@@ -43,7 +43,7 @@ Returns content from plugins and sets responses.
 from collections import ChainMap, OrderedDict
 from copy import deepcopy
 from datetime import datetime
-from functools import partial
+from functools import lru_cache, partial, wraps
 from gzip import compress
 from http import HTTPStatus
 import logging
@@ -932,7 +932,35 @@ def conformance(api, request: APIRequest) -> Tuple[dict, int, str]:
 
     return headers, HTTPStatus.OK, to_json(conformance, api.pretty_print)
 
+def cached_with_key(key_func, maxsize=100):
+    """
+    LRU cache where only the computed key participates in caching.
+    """
 
+    def decorator(fn):
+        _cache = lru_cache(maxsize=maxsize)(
+            lambda key: fn(*key_args[key][0], **key_args[key][1])
+        )
+        key_args = {}
+
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            key = key_func(*args, **kwargs)
+            if key not in key_args:
+                key_args[key] = (args, kwargs)
+            return _cache(key)
+
+        # expose cache helpers
+        wrapper.cache_info = _cache.cache_info
+        wrapper.cache_clear = _cache.cache_clear
+        return wrapper
+
+    return decorator
+
+
+@cached_with_key(
+    lambda api, request, dataset=None: (dataset, getattr(request, "args", {}).get("f"))
+)
 @jsonldify
 def describe_collections(api: API, request: APIRequest,
                          dataset=None) -> Tuple[dict, int, str]:
