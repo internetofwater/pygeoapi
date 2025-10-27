@@ -471,6 +471,13 @@ def test_collection_with_digest(api_):
     assert rsp_digest_headers['Content-Type'] == 'application/json'
     assert rsp_digest_headers['Content-Digest'] == 'sha256=ab515ff16617b01208dfc0eadb025461926c890e5b980da658477c50fac27687' # noqa
 
+    req_digest = mock_api_request(HTTP_WANT_CONTENT_DIGEST='md5')
+    rsp_digest_headers, _, rsp_digest = get_collection_item(
+        api_, req_digest, 'obs', '371')
+    apply_integrity(rsp_digest_headers, rsp_digest)
+    assert rsp_digest_headers['Content-Type'] == 'application/json'
+    assert rsp_digest_headers['Content-Digest'] == 'md5=57c4b691d4a1e4000e3102b366be728d' # noqa
+
     req_digest = mock_api_request(HTTP_WANT_CONTENT_DIGEST='sha384')
     rsp_digest_headers, _, rsp_digest = get_collection_item(
         api_, req_digest, 'obs', '371')
