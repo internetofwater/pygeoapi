@@ -404,8 +404,6 @@ class APIRequest:
             safe_hash = hash_method.replace('-', '_')
             if hash_method in DIGEST_METHODS or safe_hash in DIGEST_METHODS:
                 return hash_method
-            elif hash_method.replace('-', '_') in DIGEST_METHODS:
-                return hash_method
 
     @property
     def data(self) -> bytes:
