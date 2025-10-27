@@ -83,8 +83,7 @@ HEADERS = {
 CHARSET = ['utf-8']
 
 #: Digest integrity methods supported
-DIGEST_METHODS = ['sha1', 'sha256', 'sha384', 'sha512',
-                  'sha3-256', 'sha3-384', 'sha3-512']
+DIGEST_METHODS = hashlib.algorithms_guaranteed
 
 #: Locale used for system responses (e.g. exceptions)
 SYSTEM_LOCALE = l10n.Locale('en', 'US')
@@ -388,7 +387,8 @@ class APIRequest:
 
         for hash_method in hash_methods:
             hash_method = hash_method.lower()
-            if hash_method in DIGEST_METHODS:
+            safe_hash = hash_method.replace('-', '_')
+            if hash_method in DIGEST_METHODS or safe_hash in DIGEST_METHODS:
                 return hash_method
 
     @property
