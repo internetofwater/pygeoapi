@@ -10,9 +10,6 @@ on:
     workflows: ["Build"]
     types: [completed]
     branches: [latest]
-  push:
-    branches:
-      - latest
     
 env:
   DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPOSITORY || 'geopython/pygeoapi' }}
@@ -39,8 +36,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2.1.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Log in to the Container registry
         uses: docker/login-action@v2.1.0
@@ -69,7 +66,7 @@ jobs:
             ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v3.3.0
