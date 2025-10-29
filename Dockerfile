@@ -131,11 +131,11 @@ ADD . /pygeoapi
 
 # Install remaining pygeoapi deps and pygeoapi itself
 RUN python3 -m venv --system-site-packages /venv \
-    && /venv/bin/python3 -m pip install --no-cache-dir https://github.com/cgs-earth/pygeoapi-plugins/archive/refs/heads/master.zip \
     && /venv/bin/python3 -m pip install --no-cache-dir -r requirements-docker.txt \
     && /venv/bin/python3 -m pip install --no-cache-dir -r requirements-admin.txt \
     && /venv/bin/python3 -m pip install --no-cache-dir gunicorn \
-    && /venv/bin/python3 -m pip install --no-cache-dir -e .
+    && /venv/bin/python3 -m pip install --no-cache-dir -e . \
+    && /venv/bin/python3 -m pip install --no-cache-dir https://github.com/cgs-earth/pygeoapi-plugins/archive/refs/heads/master.zip
 
 # Set default config and entrypoint for Docker Image
 # and compile language files
