@@ -27,7 +27,6 @@
 #
 # =================================================================
 
-import csv
 import geopandas as gpd
 import os
 import tempfile
@@ -35,7 +34,7 @@ import zipfile
 import io
 import logging
 
-from pygeoapi.formatter.base import BaseFormatter, FormatterSerializationError
+from pygeoapi.formatter.base import BaseFormatter
 
 LOGGER = logging.getLogger(__name__)
 

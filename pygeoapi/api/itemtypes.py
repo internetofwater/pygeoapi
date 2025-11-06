@@ -686,7 +686,7 @@ def get_collection_items(
         headers['Content-Disposition'] = cd
 
         return headers, HTTPStatus.OK, content
-    
+
     elif request.format == 'shp':  # render
         formatter = load_plugin('formatter',
                                 {'name': 'SHP', 'filename': dataset})
@@ -708,10 +708,11 @@ def get_collection_items(
                 'NoApplicableCode', msg)
 
         headers['Content-Type'] = formatter.mimetype
-        headers['Content-Disposition'] = f'attachment; filename="{dataset}.zip"'
+        headers['Content-Disposition'] = \
+            f'attachment; filename="{dataset}.zip"'
 
         return headers, HTTPStatus.OK, content
-    
+
     elif request.format == 'kml':  # render
         formatter = load_plugin('formatter',
                                 {'name': 'KML', 'filename': dataset})
@@ -733,7 +734,8 @@ def get_collection_items(
                 'NoApplicableCode', msg)
 
         headers['Content-Type'] = formatter.mimetype
-        headers['Content-Disposition'] = f'attachment; filename="{dataset}.kml"'
+        headers['Content-Disposition'] = \
+            f'attachment; filename="{dataset}.kml"'
 
         return headers, HTTPStatus.OK, content
 
