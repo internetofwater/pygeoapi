@@ -74,7 +74,9 @@ PLUGINS = {
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter',
-        'CSVCoverage': 'pygeoapi.formatter.csv_.CSVCoverageFormatter'
+        'CSVCoverage': 'pygeoapi.formatter.csv_.CSVCoverageFormatter',
+        'KML': 'pygeoapi.formatter.shape.KMLFormatter',
+        'SHP': 'pygeoapi.formatter.shape.ShapefileFormatter',
     },
     'process': {
         'HelloWorld': 'pygeoapi.process.hello_world.HelloWorldProcessor',

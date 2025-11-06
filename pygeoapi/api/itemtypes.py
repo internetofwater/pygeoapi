@@ -686,6 +686,56 @@ def get_collection_items(
         headers['Content-Disposition'] = cd
 
         return headers, HTTPStatus.OK, content
+    
+    elif request.format == 'shp':  # render
+        formatter = load_plugin('formatter',
+                                {'name': 'SHP', 'filename': dataset})
+
+        try:
+            content = formatter.write(
+                data=content,
+                options={
+                    'provider_def': get_provider_by_type(
+                        collections[dataset]['providers'],
+                        'feature')
+                }
+            )
+
+        except FormatterSerializationError:
+            msg = 'Error serializing output'
+            return api.get_exception(
+                HTTPStatus.INTERNAL_SERVER_ERROR, headers, request.format,
+                'NoApplicableCode', msg)
+
+        headers['Content-Type'] = formatter.mimetype
+        headers['Content-Disposition'] = f'attachment; filename="{dataset}.zip"'
+
+        return headers, HTTPStatus.OK, content
+    
+    elif request.format == 'kml':  # render
+        formatter = load_plugin('formatter',
+                                {'name': 'KML', 'filename': dataset})
+
+        try:
+            content = formatter.write(
+                data=content,
+                options={
+                    'provider_def': get_provider_by_type(
+                        collections[dataset]['providers'],
+                        'feature')
+                }
+            )
+
+        except FormatterSerializationError:
+            msg = 'Error serializing output'
+            return api.get_exception(
+                HTTPStatus.INTERNAL_SERVER_ERROR, headers, request.format,
+                'NoApplicableCode', msg)
+
+        headers['Content-Type'] = formatter.mimetype
+        headers['Content-Disposition'] = f'attachment; filename="{dataset}.kml"'
+
+        return headers, HTTPStatus.OK, content
 
     elif request.format == F_JSONLD:
         content = geojson2jsonld(
