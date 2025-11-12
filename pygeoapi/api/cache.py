@@ -27,11 +27,10 @@ def headers_require_revalidation(request: 'APIRequest') -> bool:
 def lru_cache_specific_args(
     cache_keys: Callable[..., tuple],
     maxsize: int,
-    skip_caching_fn: Callable[['APIRequest'], bool] | None = None,
+    skip_caching_fn: Callable[["APIRequest"], bool] | None = None,
 ) -> Callable:
     """
     LRU cache where only the computed key participates in caching.
-
     Parameters
     ----------
     key_func : Callable
@@ -41,8 +40,8 @@ def lru_cache_specific_args(
         The maximum size of the cache
     skip_caching_fn : Callable[['APIRequest'], bool] | None
         An optional function which takes an APIRequest and returns a boolean
-        indicating whether caching should be skipped for the given request
-
+        indicating whether caching should be skipped for the given request.
+        Even when skipped, the result will still be stored in the cache.
     Returns
     -------
     Callable
@@ -57,16 +56,24 @@ def lru_cache_specific_args(
 
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            # Check if caching should be skipped
-            if skip_caching_fn:
-                request = args[1]
-                skip_caching = skip_caching_fn(request)
-                if skip_caching:
-                    return fn(*args, **kwargs)
-
             key = cache_keys(*args, **kwargs)
+
+            # Store args/kwargs for this key if not already present
             if key not in key_args:
                 key_args[key] = (args, kwargs)
+
+            # Check if caching should be skipped (but still store result)
+            if skip_caching_fn:
+                request: 'APIRequest' = args[1]
+                skip_caching = skip_caching_fn(request)
+                if skip_caching:
+                    # Execute function directly, bypassing cache lookup
+                    result = fn(*args, **kwargs)
+                    # Store the result in cache by calling internal_lru_cache
+                    # This updates the cache without using the cached value
+                    internal_lru_cache(key)
+                    return result
+
             return internal_lru_cache(key)
 
         # make the wrapper behave like the wrapped lru cache
