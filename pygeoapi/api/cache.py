@@ -27,7 +27,7 @@ def headers_require_revalidation(request: 'APIRequest') -> bool:
 def lru_cache_specific_args(
     cache_keys: Callable[..., tuple],
     maxsize: int,
-    skip_caching_fn: Callable[["APIRequest"], bool] | None = None,
+    skip_caching_fn: Callable[['APIRequest'], bool] | None = None,
 ) -> Callable:
     """
     LRU cache where only the computed key participates in caching.
