@@ -57,7 +57,10 @@ from dateutil.parser import parse as dateparse
 import pytz
 
 from pygeoapi import __version__, l10n
-from pygeoapi.api.cache import lru_cache_specific_args, headers_require_revalidation
+from pygeoapi.api.cache import (
+    lru_cache_specific_args,
+    headers_require_revalidation
+)
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
