@@ -57,6 +57,7 @@ from dateutil.parser import parse as dateparse
 import pytz
 
 from pygeoapi import __version__, l10n
+from pygeoapi.api.cache import lru_cache_specific_args, headers_require_revalidation
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
@@ -897,6 +898,11 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
     return headers, HTTPStatus.OK, to_json(conformance, api.pretty_print)
 
 
+@lru_cache_specific_args(
+    cache_keys=lambda api, request, dataset: (api, request.params, dataset),
+    maxsize=10,
+    skip_caching_fn=lambda request: headers_require_revalidation(request),
+)
 @jsonldify
 def describe_collections(api: API, request: APIRequest,
                          dataset: str | None = None) -> Tuple[dict, int, str]:
