@@ -839,8 +839,15 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
 
 
 @lru_cache_specific_args(
-    cache_keys=lambda api, request, dataset=None:
-    (api, request.params, request.format, dataset),
+    cache_keys=lambda api, request, dataset=None: (
+        api,
+        # QueryParams in starlette is not hashable
+        # thus we need to convert it to a tuple
+        # and sort it to make the cache key deterministic
+        tuple(sorted(request.params.items())),
+        request.format,
+        dataset,
+    ),
     maxsize=10,
     skip_caching_fn=lambda request: headers_require_revalidation(request),
 )
