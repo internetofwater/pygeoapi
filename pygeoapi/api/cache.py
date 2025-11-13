@@ -8,15 +8,15 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-def headers_require_revalidation(request: "APIRequest") -> bool:
+def headers_require_revalidation(request: 'APIRequest') -> bool:
     """Check if request headers indicate caching should be skipped.
     All header comparisons are done case insensitive
     """
     headers: dict = request.headers
-    cache_invalidation_headers = {"no-cache", "no-store", "must-revalidate"}
+    cache_invalidation_headers = {'no-cache', 'no-store', 'must-revalidate'}
     LOGGER.error(headers)
     for header, value in headers.items():
-        if header.lower() == "cache-control":
+        if header.lower() == 'cache-control':
             for invalidation_header in cache_invalidation_headers:
                 if invalidation_header == value.lower():
                     return True
@@ -27,7 +27,7 @@ def headers_require_revalidation(request: "APIRequest") -> bool:
 def lru_cache_specific_args(
     cache_keys: Callable[..., tuple],
     maxsize: int,
-    skip_caching_fn: Callable[["APIRequest"], bool] | None = None,
+    skip_caching_fn: Callable[['APIRequest'], bool] | None = None,
 ) -> Callable:
     """
     LRU cache where only the computed key participates in caching.
@@ -64,7 +64,7 @@ def lru_cache_specific_args(
 
             # Check if caching should be skipped (but still store result)
             if skip_caching_fn:
-                request: "APIRequest" = args[1]
+                request: 'APIRequest' = args[1]
                 skip_caching = skip_caching_fn(request)
                 if skip_caching:
                     # Execute function directly, bypassing cache lookup
