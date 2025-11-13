@@ -840,7 +840,7 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
 
 @lru_cache_specific_args(
     cache_keys=lambda api, request, dataset=None:
-    (api, request.params, request.headers['Accept'], dataset),
+    (api, request.params, request.format, dataset),
     maxsize=10,
     skip_caching_fn=lambda request: headers_require_revalidation(request),
 )

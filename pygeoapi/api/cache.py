@@ -14,7 +14,6 @@ def headers_require_revalidation(request: 'APIRequest') -> bool:
     """
     headers: dict = request.headers
     cache_invalidation_headers = {'no-cache', 'no-store', 'must-revalidate'}
-    LOGGER.error(headers)
     for header, value in headers.items():
         if header.lower() == 'cache-control':
             for invalidation_header in cache_invalidation_headers:
