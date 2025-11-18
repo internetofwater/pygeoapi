@@ -1236,7 +1236,6 @@ def describe_collections(api: API, request: APIRequest,
                     }
                     if k in onto_mapping:
                         if key not in onto_mapping[k]:
-                            collection['parameter_names'].pop(key)
                             continue
 
                         param_mapping = onto_mapping[k][key]
