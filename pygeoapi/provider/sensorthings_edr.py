@@ -394,7 +394,7 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
             if len(feature['Datastreams']) == 0:
                 continue
 
-            id = feature['name'].replace(' ', '+')
+            id = feature['@iot.id']
 
             for datastream in feature['Datastreams']:
                 coverage, length = self._generate_coverage(datastream, id)
