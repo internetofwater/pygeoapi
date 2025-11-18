@@ -29,6 +29,9 @@
 
 import logging
 
+from datetime import datetime, time
+
+from pygeoapi.util import format_datetime, DATETIME_FORMAT
 from pygeoapi.provider.base import ProviderNoDataError
 from pygeoapi.provider.base_edr import BaseEDRProvider
 from pygeoapi.provider.sensorthings import SensorThingsProvider
@@ -76,7 +79,9 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         if not self._fields:
             r = self._get_response(
-                self._url, entity='ObservedProperties', expand='Datastreams'
+                self._url,
+                entity='ObservedProperties',
+                expand='Datastreams($top=1)'
             )
             try:
                 _ = r['value'][0]
@@ -137,7 +142,7 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
         expand = [
             'Datastreams($select=description,name,unitOfMeasurement)',
             'Datastreams/Thing($select=@iot.id)',
-            'Datastreams/Thing/Locations($select=location)'
+            'Datastreams/Thing/Locations($select=location)',
         ]
 
         if select_properties:
@@ -150,8 +155,9 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         filter_ = f'$filter={self._make_dtf(datetime_)};' if datetime_ else ''
         if location_id:
+            id = self._safe_iotid(location_id)
             expand[0] = (
-                f'Datastreams($filter=Thing/@iot.id eq {location_id};'
+                f'Datastreams($filter=Thing/@iot.id eq {id};'
                 '$select=description,name,unitOfMeasurement)'
             )
             expand.append(
@@ -160,7 +166,8 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
             )
         else:
             expand.append(
-                f'Datastreams/Observations({filter_}$select=result;$top=1)')
+                f'Datastreams/Observations({filter_}$select=result;$top=1)'
+            )
 
         if bbox:
             geom_filter = self._make_bbox(bbox, 'Datastreams')
@@ -168,8 +175,10 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         expand = ','.join(expand)
         response = self._get_response(
-            url=self._url, params=params,
-            entity='ObservedProperties', expand=expand
+            url=self._url,
+            params=params,
+            entity='ObservedProperties',
+            expand=expand
         )
 
         if location_id:
@@ -208,8 +217,8 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
         geom_filter = self._make_bbox(bbox, 'Datastreams')
         expand = [
             (
-             f'Datastreams($filter={geom_filter};'
-             '$select=description,name,unitOfMeasurement)'
+                f'Datastreams($filter={geom_filter};'
+                '$select=description,name,unitOfMeasurement)'
             ),
             'Datastreams/Thing($select=@iot.id)',
             'Datastreams/Thing/Locations($select=location)'
@@ -231,8 +240,10 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         expand = ','.join(expand)
         response = self._get_response(
-            url=self._url, params=params,
-            entity='ObservedProperties', expand=expand
+            url=self._url,
+            params=params,
+            entity='ObservedProperties',
+            expand=expand
         )
 
         return self._make_coverage_collection(response)
@@ -260,9 +271,9 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         expand = [
             (
-             'Datastreams($filter=st_within('
-             f"Thing/Locations/location,geography'{wkt}');"
-             '$select=description,name,unitOfMeasurement)'
+                'Datastreams($filter=st_within('
+                f"Thing/Locations/location,geography'{wkt}');"
+                '$select=description,name,unitOfMeasurement)'
             ),
             'Datastreams/Thing($select=@iot.id)',
             'Datastreams/Thing/Locations($select=location)'
@@ -284,13 +295,16 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
 
         expand = ','.join(expand)
         response = self._get_response(
-            url=self._url, params=params,
-            entity='ObservedProperties', expand=expand
+            url=self._url,
+            params=params,
+            entity='ObservedProperties',
+            expand=expand,
         )
 
         return self._make_coverage_collection(response)
 
-    def _generate_coverage(self, datastream: dict, id: str) -> dict:
+    def _generate_coverage(self, datastream: dict, id: str
+                           ) -> tuple[dict, int]:
         """
         Generate a coverage object for a datastream.
 
@@ -364,13 +378,21 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
         if '/' in datetime_:
             time_start, time_end = datetime_.split('/')
             if time_start != '..':
-                dtf_r.append(f'phenomenonTime ge {time_start}')
+                dtf_r.append(
+                    f'phenomenonTime ge {format_datetime(time_start)}'
+                )
 
             if time_end != '..':
-                dtf_r.append(f'phenomenonTime le {time_end}')
+                isdate = 9 < len(time_end.strip('T')) < 13
+                time_end = datetime.fromisoformat(time_end)
+                if isdate:
+                    time_end = datetime.combine(time_end.date(), time.max)
+                dtf_r.append(
+                    f'phenomenonTime le {time_end.strftime(DATETIME_FORMAT)}'
+                )
 
         else:
-            dtf_r.append(f'phenomenonTime eq {datetime_}')
+            dtf_r.append(f'phenomenonTime eq {format_datetime(datetime_)}')
 
         return ' and '.join(dtf_r)
 
@@ -394,7 +416,7 @@ class SensorThingsEDRProvider(BaseEDRProvider, SensorThingsProvider):
             if len(feature['Datastreams']) == 0:
                 continue
 
-            id = feature['@iot.id']
+            id = str(feature['@iot.id'])
 
             for datastream in feature['Datastreams']:
                 coverage, length = self._generate_coverage(datastream, id)

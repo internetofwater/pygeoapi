@@ -85,11 +85,11 @@ def test_query_datastreams(config):
 
     results = p.query(limit=1)
     assert len(results['features']) == 1
-    assert results['features'][0]['id'] == '1'
+    assert results['features'][0]['id'] == 1
 
     results = p.query(offset=2, limit=1)
     assert len(results['features']) == 1
-    assert results['features'][0]['id'] == '3'
+    assert results['features'][0]['id'] == 3
 
     assert len(results['features'][0]['properties']) == 19
 
@@ -156,8 +156,8 @@ def test_query_observations(config):
 def test_get(config):
     p = SensorThingsProvider(config)
 
-    result = p.get('9')
-    assert result['id'] == '9'
+    result = p.get(9)
+    assert result['id'] == 9
     assert result['properties']['name'] == 'Depth Below Surface'
     assert isinstance(result['properties']['Thing'], dict)
 
@@ -191,8 +191,8 @@ def test_custom_uri_field(config):
     config['properties'] = ['name']
     p = SensorThingsProvider(config)
 
-    result = p.get('9')
-    assert result['id'] == '9'
+    result = p.get(9)
+    assert result['id'] == 9
     assert result['properties']['name'] == 'Depth Below Surface'
     assert result['properties']['uri'] == \
         'https://geoconnex.us/iow/sta-demo/timeseries/9'
@@ -202,7 +202,7 @@ def test_custom_uri_field(config):
     p = SensorThingsProvider(config)
     with pytest.raises(ProviderInvalidDataError,
                        match=".*Unable to find uri field: bad_uri"):
-        result = p.get('9')
+        result = p.get(9)
 
 
 def test_transactions(config, post_body):

@@ -37,7 +37,7 @@ def config():
     return {
         'name': 'SensorThingsEDRProvider',
         'type': 'edr',
-        'data': 'http://localhost:8888/FROST-Server/v1.1'
+        'data': 'http://localhost:8888/FROST-Server/v1.1',
     }
 
 
@@ -99,11 +99,11 @@ def test_get_location(config):
 
     # Validate 'parameters'
     parameters = response['parameters']
-    assert 'Water+Level+Below+Ground+Surface' in parameters
-    assert 'Water+Level+relative+to+datum' in parameters
+    assert '1' in parameters
+    assert '2' in parameters
 
     # Check parameter structure
-    wl_below_ground = parameters['Water+Level+Below+Ground+Surface']
+    wl_below_ground = parameters['1']
     assert wl_below_ground['type'] == 'Parameter'
     assert (
         wl_below_ground['description']['en']
@@ -142,14 +142,11 @@ def test_get_location(config):
 
         # Validate 'ranges'
         ranges = coverage['ranges']
-        assert (
-            'Water+Level+Below+Ground+Surface' in ranges
-            or 'Water+Level+relative+to+datum' in ranges
-        )
+        assert '1' in ranges or '2' in ranges
 
         # Validate range data
-        if 'Water+Level+Below+Ground+Surface' in ranges:
-            wl_range = ranges['Water+Level+Below+Ground+Surface']
+        if 1 in ranges:
+            wl_range = ranges[1]
             assert wl_range['type'] == 'NdArray'
             assert wl_range['dataType'] == 'float'
             assert len(wl_range['values']) == 17
@@ -174,10 +171,10 @@ def test_get_cube(config):
 
     # Validate 'parameters'
     parameters = response['parameters']
-    assert 'Temperature' in parameters
+    assert '3' in parameters
 
     # Check parameter structure
-    temperature_param = parameters['Temperature']
+    temperature_param = parameters['3']
     assert temperature_param['type'] == 'Parameter'
     assert temperature_param['description']['en'] == 'Temperature measurement'
     assert temperature_param['observedProperty']['id'] == 'Temperature'
@@ -227,10 +224,10 @@ def test_get_cube(config):
 
     # Validate 'ranges'
     ranges = coverage['ranges']
-    assert 'Temperature' in ranges
+    assert '3' in ranges
 
     # Check range data
-    temperature_range = ranges['Temperature']
+    temperature_range = ranges['3']
     assert temperature_range['type'] == 'NdArray'
     assert temperature_range['dataType'] == 'float'
     assert temperature_range['axisNames'] == ['t']
@@ -267,10 +264,10 @@ def test_get_cube_time_filter(config):
 
     # Validate 'parameters'
     parameters = response['parameters']
-    assert 'Temperature' in parameters
+    assert '3' in parameters
 
     # Check parameter structure
-    temperature_param = parameters['Temperature']
+    temperature_param = parameters['3']
     assert temperature_param['type'] == 'Parameter'
     assert temperature_param['description']['en'] == 'Temperature measurement'
     assert temperature_param['observedProperty']['id'] == 'Temperature'
@@ -323,10 +320,10 @@ def test_get_cube_time_filter(config):
 
     # Validate 'ranges'
     ranges = coverage['ranges']
-    assert 'Temperature' in ranges
+    assert '3' in ranges
 
     # Check range data
-    temperature_range = ranges['Temperature']
+    temperature_range = ranges['3']
     assert temperature_range['type'] == 'NdArray'
     assert temperature_range['dataType'] == 'float'
     assert temperature_range['axisNames'] == ['t']
@@ -340,7 +337,9 @@ def test_get_area(config):
     p = SensorThingsEDRProvider(config)
 
     # Query the area with a sample WKT polygon
-    response = p.area(wkt='POLYGON ((-108 34, -108 35, -107 35, -107 34, -108 34))')  # noqa
+    response = p.area(
+        wkt='POLYGON ((-108 34, -108 35, -107 35, -107 34, -108 34))'
+    )  # noqa
 
     # Check the overall type
     assert response.get('type') == 'CoverageCollection'
@@ -351,8 +350,8 @@ def test_get_area(config):
     # Check parameters
     parameters = response.get('parameters')
     assert parameters is not None
-    assert 'Water+Level+Below+Ground+Surface' in parameters
-    wl_below_ground = parameters['Water+Level+Below+Ground+Surface']
+    assert '1' in parameters
+    wl_below_ground = parameters['1']
     assert wl_below_ground['type'] == 'Parameter'
     assert (
         wl_below_ground['description']['en']
@@ -362,16 +361,14 @@ def test_get_area(config):
         wl_below_ground['observedProperty']['id']
         == 'Water Level Below Ground Surface'
     )
-    assert (
-        wl_below_ground['unit']['label']['en'] == 'feet'
-    )
+    assert wl_below_ground['unit']['label']['en'] == 'feet'
 
-    assert 'Water+Level+relative+to+datum' in parameters
-    wl_relative_datum = parameters['Water+Level+relative+to+datum']
+    assert '2' in parameters
+    wl_relative_datum = parameters['2']
     assert wl_relative_datum['type'] == 'Parameter'
     assert (
         wl_relative_datum['description']['en']
-        == 'Measured water level relative to National Geodetic Vertical Datum of 1929' # noqa
+        == 'Measured water level relative to National Geodetic Vertical Datum of 1929'  # noqa
     )
     assert (
         wl_relative_datum['observedProperty']['id']
@@ -398,7 +395,7 @@ def test_get_area(config):
     assert len(axes_23['t']['values']) == 31
 
     ranges_23 = coverage_23.get('ranges')
-    assert 'Water+Level+Below+Ground+Surface' in ranges_23
-    assert ranges_23['Water+Level+Below+Ground+Surface']['type'] == 'NdArray'
-    assert ranges_23['Water+Level+Below+Ground+Surface']['dataType'] == 'float'
-    assert ranges_23['Water+Level+Below+Ground+Surface']['shape'] == [31]
+    assert '1' in ranges_23
+    assert ranges_23['1']['type'] == 'NdArray'
+    assert ranges_23['1']['dataType'] == 'float'
+    assert ranges_23['1']['shape'] == [31]

@@ -29,6 +29,7 @@
 #
 # =================================================================
 
+from datetime import datetime, time
 from json.decoder import JSONDecodeError
 import logging
 from requests import Session
@@ -38,19 +39,39 @@ from urllib.parse import urlparse
 from pygeoapi.config import get_config
 from pygeoapi.crs import crs_transform
 from pygeoapi.provider.base import (
-    BaseProvider, ProviderQueryError, ProviderConnectionError,
-    ProviderInvalidDataError)
+    BaseProvider,
+    ProviderQueryError,
+    ProviderConnectionError,
+    ProviderInvalidDataError
+)
 from pygeoapi.util import (
-    url_join, get_provider_default, get_base_url, get_typed_value)
+    url_join,
+    get_provider_default,
+    get_base_url,
+    get_typed_value,
+    format_datetime,
+    DATETIME_FORMAT
+)
 
 LOGGER = logging.getLogger(__name__)
 
 ENTITY = {
-    'Thing', 'Things', 'Observation', 'Observations',
-    'Location', 'Locations', 'Sensor', 'Sensors',
-    'Datastream', 'Datastreams', 'ObservedProperty',
-    'ObservedProperties', 'FeatureOfInterest', 'FeaturesOfInterest',
-    'HistoricalLocation', 'HistoricalLocations'
+    'Thing',
+    'Things',
+    'Observation',
+    'Observations',
+    'Location',
+    'Locations',
+    'Sensor',
+    'Sensors',
+    'Datastream',
+    'Datastreams',
+    'ObservedProperty',
+    'ObservedProperties',
+    'FeatureOfInterest',
+    'FeaturesOfInterest',
+    'HistoricalLocation',
+    'HistoricalLocations'
 }
 _EXPAND = {
     'Things': 'Locations,Datastreams',
@@ -69,12 +90,14 @@ _EXPAND = {
             )
     """
 }
-EXPAND = {k: ''.join(v.split()).replace('_', ' ')
-          for (k, v) in _EXPAND.items()}
+EXPAND = {
+    k: ''.join(v.split()).replace('_', ' ') for (k, v) in _EXPAND.items()
+}
 
 
 class SensorThingsProvider(BaseProvider):
     """SensorThings API (STA) Provider"""
+
     expand = EXPAND
 
     def __init__(self, provider_def):
@@ -115,9 +138,10 @@ class SensorThingsProvider(BaseProvider):
                 LOGGER.error(msg)
                 raise ProviderConnectionError(msg)
 
-            for (n, v) in results.items():
-                if isinstance(v, (int, float)) or \
-                   (isinstance(v, (dict, list)) and n in ENTITY):
+            for n, v in results.items():
+                if isinstance(v, (int, float)) or (
+                    isinstance(v, (dict, list)) and n in ENTITY
+                ):
                     self._fields[n] = {'type': 'number'}
                 elif isinstance(v, str):
                     self._fields[n] = {'type': 'string'}
@@ -125,9 +149,20 @@ class SensorThingsProvider(BaseProvider):
         return self._fields
 
     @crs_transform
-    def query(self, offset=0, limit=10, resulttype='results',
-              bbox=[], datetime_=None, properties=[], sortby=[],
-              select_properties=[], skip_geometry=False, q=None, **kwargs):
+    def query(
+        self,
+        offset=0,
+        limit=10,
+        resulttype='results',
+        bbox=[],
+        datetime_=None,
+        properties=[],
+        sortby=[],
+        select_properties=[],
+        skip_geometry=False,
+        q=None,
+        **kwargs
+    ):
         """
         STA query
 
@@ -145,10 +180,17 @@ class SensorThingsProvider(BaseProvider):
         :returns: dict of GeoJSON FeatureCollection
         """
 
-        return self._load(offset, limit, resulttype, bbox=bbox,
-                          datetime_=datetime_, properties=properties,
-                          sortby=sortby, select_properties=select_properties,
-                          skip_geometry=skip_geometry)
+        return self._load(
+            offset,
+            limit,
+            resulttype,
+            bbox=bbox,
+            datetime_=datetime_,
+            properties=properties,
+            sortby=sortby,
+            select_properties=select_properties,
+            skip_geometry=skip_geometry
+        )
 
     @crs_transform
     def get(self, identifier, **kwargs):
@@ -159,7 +201,8 @@ class SensorThingsProvider(BaseProvider):
 
         :returns: dict of single GeoJSON feature
         """
-        response = self._get_response(f'{self._url}({identifier})')
+        id = self._safe_iotid(identifier)
+        response = self._get_response(f'{self._url}({id})')
         return self._make_feature(response)
 
     def create(self, item):
@@ -173,13 +216,13 @@ class SensorThingsProvider(BaseProvider):
         response = self.http.post(self._url, json=item)
 
         if response.status_code == 201:
-            location = response.headers.get("Location")
-            iotid = location[location.find("(")+1:location.find(")")]
+            location = response.headers.get('Location')
+            iotid = location[location.find('(') + 1:location.find(')')]
 
             LOGGER.debug(f'Feature created with @iot.id: {iotid}')
             return get_typed_value(iotid)
         else:
-            msg = f"Failed to create item: {response.text}"
+            msg = f'Failed to create item: {response.text}'
             raise ProviderInvalidDataError(msg)
 
     def update(self, identifier, item):
@@ -191,10 +234,9 @@ class SensorThingsProvider(BaseProvider):
 
         :returns: `bool` of update result
         """
-        id = f"'{identifier}'" \
-             if isinstance(identifier, str) else str(identifier)
+        id = self._safe_iotid(identifier)
         LOGGER.debug(f'Updating @iot.id: {id}')
-        response = self.http.put(f"{self._url}({id})", json=item)
+        response = self.http.put(f'{self._url}({id})', json=item)
 
         if response.status_code == 200:
             return True
@@ -210,20 +252,29 @@ class SensorThingsProvider(BaseProvider):
 
         :returns: `bool` of deletion result
         """
-        id = f"'{identifier}'" \
-             if isinstance(identifier, str) else str(identifier)
+        id = self._safe_iotid(identifier)
         LOGGER.debug(f'Deleting @iot.id: {id}')
-        response = self.http.delete(f"{self._url}({id})")
+        response = self.http.delete(f'{self._url}({id})')
 
         if response.status_code == 200:
             return True
         else:
-            msg = f"Failed to delete item: {response.text}"
+            msg = f'Failed to delete item: {response.text}'
             raise ProviderConnectionError(msg)
 
-    def _load(self, offset=0, limit=10, resulttype='results',
-              bbox=[], datetime_=None, properties=[], sortby=[],
-              select_properties=[], skip_geometry=False, q=None):
+    def _load(
+        self,
+        offset=0,
+        limit=10,
+        resulttype='results',
+        bbox=[],
+        datetime_=None,
+        properties=[],
+        sortby=[],
+        select_properties=[],
+        skip_geometry=False,
+        q=None
+    ):
         """
         Private function: Load STA data
 
@@ -243,10 +294,7 @@ class SensorThingsProvider(BaseProvider):
 
         # Make defaults
         fc = {'type': 'FeatureCollection', 'features': []}
-        params = {
-            '$skip': str(offset),
-            '$top': str(limit)
-        }
+        params = {'$skip': str(offset), '$top': str(limit)}
 
         if properties or bbox or datetime_:
             params['$filter'] = self._make_filter(properties, bbox, datetime_)
@@ -275,10 +323,14 @@ class SensorThingsProvider(BaseProvider):
         while len(v) < limit:
             try:
                 # Ensure we only use provided network location
-                next_ = urlparse(response['@iot.nextLink'])._replace(
-                    scheme=self.parsed_url.scheme,
-                    netloc=self.parsed_url.netloc
-                ).geturl()
+                next_ = (
+                    urlparse(response['@iot.nextLink'])
+                    ._replace(
+                        scheme=self.parsed_url.scheme,
+                        netloc=self.parsed_url.netloc,
+                    )
+                    .geturl()
+                )
 
                 LOGGER.debug('Fetching next set of values')
                 response = self._get_response(next_)
@@ -293,8 +345,9 @@ class SensorThingsProvider(BaseProvider):
 
         return fc
 
-    def _make_feature(self, feature, select_properties=[], skip_geometry=False,
-                      entity=None):
+    def _make_feature(
+        self, feature, select_properties=[], skip_geometry=False, entity=None
+    ):
         """
         Private function: Create feature from entity
 
@@ -305,11 +358,8 @@ class SensorThingsProvider(BaseProvider):
 
         :returns: dict of GeoJSON Feature
         """
-        _ = feature[self.id_field]
-        id = f"'{_}'" if isinstance(_, str) else str(_)
-        f = {
-            'type': 'Feature', 'id': id, 'properties': {}, 'geometry': None
-        }
+        id = feature[self.id_field]
+        f = {'type': 'Feature', 'id': id, 'properties': {}, 'geometry': None}
 
         # Make geometry
         if not skip_geometry:
@@ -318,12 +368,30 @@ class SensorThingsProvider(BaseProvider):
         # Fill properties block
         try:
             f['properties'] = self._expand_properties(
-                feature, select_properties, entity)
+                feature, select_properties, entity
+            )
         except KeyError as err:
             LOGGER.error(err)
             raise ProviderQueryError(err)
 
         return f
+
+    @staticmethod
+    def _safe_iotid(identifier):
+        """
+        Private function: Safely format @iot.id value
+
+        :param value: `str` of @iot.id value
+
+        :returns: `str` of formatted @iot.id value
+        """
+
+        if isinstance(identifier, str):
+            identifier_ = identifier.strip("'")
+            return f"'{identifier_}'"
+
+        else:
+            return str(identifier)
 
     def _get_response(self, url, params={}, entity=None, expand=None):
         """
@@ -357,8 +425,7 @@ class SensorThingsProvider(BaseProvider):
 
         return response
 
-    def _make_filter(self, properties, bbox=[], datetime_=None,
-                     entity=None):
+    def _make_filter(self, properties, bbox=[], datetime_=None, entity=None):
         """
         Private function: Make STA filter from query properties
 
@@ -370,7 +437,7 @@ class SensorThingsProvider(BaseProvider):
         :returns: STA $filter string of properties
         """
         ret = []
-        for (name, value) in properties:
+        for name, value in properties:
             if name in ENTITY:
                 ret.append(f'{name}/@iot.id eq {value}')
             else:
@@ -389,18 +456,29 @@ class SensorThingsProvider(BaseProvider):
             if '/' in datetime_:
                 time_start, time_end = datetime_.split('/')
                 if time_start != '..':
-                    ret.append(f'{self.time_field} ge {time_start}')
+                    ret.append(
+                        f'{self.time_field} ge {format_datetime(time_start)}'
+                    )
                 if time_end != '..':
-                    ret.append(f'{self.time_field} le {time_end}')
+                    isdate = 9 < len(time_end.strip('T')) < 13
+                    time_end = datetime.fromisoformat(time_end)
+                    if isdate:
+                        time_end = datetime.combine(time_end.date(), time.max)
+
+                    ret.append(
+                        f'{self.time_field} le {time_end.strftime(DATETIME_FORMAT)}'  # noqa
+                    )
             else:
-                ret.append(f'{self.time_field} eq {datetime_}')
+                ret.append(
+                    f'{self.time_field} eq {format_datetime(datetime_)}'
+                )
 
         return ' and '.join(ret)
 
     @staticmethod
     def _make_bbox(bbox, entity):
         minx, miny, maxx, maxy = bbox
-        bbox_ = f'POLYGON(({minx} {miny},{maxx} {miny},{maxx} {maxy},{minx} {maxy},{minx} {miny}))' # noqa
+        bbox_ = f'POLYGON(({minx} {miny},{maxx} {miny},{maxx} {maxy},{minx} {maxy},{minx} {miny}))'  # noqa
         if entity == 'Things':
             loc = 'Locations/location'
         elif entity == 'Datastreams':
@@ -450,19 +528,22 @@ class SensorThingsProvider(BaseProvider):
 
             elif entity_ == 'Datastreams':
                 try:
-                    return feature['Observations'][0]['FeatureOfInterest'].pop('feature')  # noqa
+                    return feature['Observations'][0]['FeatureOfInterest'].pop(
+                        'feature'
+                    )
                 except (KeyError, IndexError):
                     return feature['Thing'].pop('Locations')[0]['location']
 
             elif entity_ == 'ObservedProperties':
-                return feature['Datastreams'][0]['Thing']['Locations'][0]['location'] # noqa
+                return feature['Datastreams'][0]['Thing']['Locations'][0][
+                    'location'
+                ]
 
         except (KeyError, IndexError):
             LOGGER.warning('No geometry found')
             return None
 
-    def _expand_properties(self, feature, keys=(), uri='',
-                           entity=None):
+    def _expand_properties(self, feature, keys=(), uri='', entity=None):
         """
         Private function: Parse STA entity into feature
 
@@ -474,8 +555,11 @@ class SensorThingsProvider(BaseProvider):
         :returns: dict of SensorThings feature properties
         """
         # Properties filter & display
-        keys = (() if not self.properties and not keys else
-                set(self.properties) | set(keys))
+        keys = (
+            ()
+            if not self.properties and not keys
+            else set(self.properties) | set(keys)
+        )
 
         entity = entity or self.entity
         if entity == 'Things':
@@ -495,12 +579,12 @@ class SensorThingsProvider(BaseProvider):
         # Create intra links
         for k, v in feature.items():
             if k in self.linked_entity:
-                feature[k] = [self._get_uri(_v, **self.linked_entity[k])
-                              for _v in v]
+                feature[k] = [
+                    self._get_uri(_v, **self.linked_entity[k]) for _v in v
+                ]
                 LOGGER.debug(f'Created link for {k}')
             elif f'{k}s' in self.linked_entity:
-                feature[k] = \
-                    self._get_uri(v, **self.linked_entity[f'{k}s'])
+                feature[k] = self._get_uri(v, **self.linked_entity[f'{k}s'])
                 LOGGER.debug(f'Created link for {k}')
 
         # Make properties block
@@ -616,12 +700,17 @@ class SensorThingsProvider(BaseProvider):
                 pvs = rs.get('providers')
                 p = get_provider_default(pvs)
                 e = p.get('entity') or self._get_entity(p['data'])
-                if any([
-                    not pvs,  # No providers in resource
-                    not p.get('intralink'),  # No configuration for intralinks
-                    not e,  # No STA entity found
-                    self.data not in p.get('data')  # No common STA endpoint
-                ]):
+                if any(
+                    [
+                        not pvs,  # No providers in resource
+                        not p.get(
+                            'intralink'
+                        ),  # No configuration for intralinks
+                        not e,  # No STA entity found
+                        self.data
+                        not in p.get('data'),  # No common STA endpoint
+                    ]
+                ):
                     continue
 
                 if p.get('uri_field'):
@@ -632,7 +721,7 @@ class SensorThingsProvider(BaseProvider):
                 self.linked_entity[e] = {
                     'cnm': name,  # OAPI collection name,
                     'cid': p.get('id_field', '@iot.id'),  # OAPI id_field
-                    'uri': p.get('uri_field')  # STA uri_field
+                    'uri': p.get('uri_field'),  # STA uri_field
                 }
 
     def __repr__(self):

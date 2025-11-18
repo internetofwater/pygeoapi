@@ -50,6 +50,7 @@ from pygeoapi import l10n
 from pygeoapi.api import evaluate_limit
 from pygeoapi.formatter.base import FormatterSerializationError
 from pygeoapi.ontology import get_mapping
+from pygeoapi.linked_data import geojson2jsonld
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider.base import (
     ProviderGenericError, ProviderItemNotFoundError)
@@ -435,6 +436,9 @@ def get_collection_edr_query(api: API, request: APIRequest,
         tpl_config = api.get_dataset_templates(dataset)
 
         uri = f'{api.get_collections_url()}/{dataset}/{query_type}'
+        if location_id:
+            uri += f'/{location_id}'
+
         serialized_query_params = ''
         for k, v in request.params.items():
             if k != 'f':
@@ -498,6 +502,17 @@ def get_collection_edr_query(api: API, request: APIRequest,
         headers['Content-Disposition'] = cd
 
         return headers, HTTPStatus.OK, content
+
+    elif request.format == F_JSONLD:
+        if data['type'] == 'FeatureCollection':
+            content = geojson2jsonld(
+                api, content, dataset, id_field=(p.uri_field or 'id')
+            )
+        else:
+            content = to_json({
+                '@context': ['https://covjson.org/context.jsonld'], **data
+            }, api.pretty_print
+            )
 
     else:
         content = to_json(data, api.pretty_print)
