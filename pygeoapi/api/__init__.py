@@ -839,6 +839,7 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
 
     return headers, HTTPStatus.OK, to_json(conformance, api.pretty_print)
 
+
 @lru_cache_specific_args(
     cache_keys=lambda api, request, dataset=None: (
         api,
@@ -899,7 +900,6 @@ def describe_collections(api: API, request: APIRequest,
 
     # Shared structures and locks for thread-safety
     parameter_groups = {}
-    parameter_groups_lock = Lock()
 
     # Keep original key order so we can reassemble collections in same order
     orig_keys = list(collections_dict.keys())
@@ -1264,7 +1264,8 @@ def describe_collections(api: API, request: APIRequest,
                     #         continue
 
                     #     param_mapping = onto_mapping[k][key]
-                    #     collection['parameter_names'][key]['narrowerThan'] = [*param_mapping]
+                    #     collection['parameter_names'][key]['narrowerThan'] =
+                    # [*param_mapping]
 
                     #     # Update shared parameter_groups safely
                     #     for param, id in param_mapping.items():
@@ -1362,7 +1363,8 @@ def describe_collections(api: API, request: APIRequest,
                 LOGGER.exception(f'Unhandled exception while building collection {key}')
                 res = None
 
-            # If worker requested an API-level early return, propagate immediately
+            # If worker requested an API-level early return, propagate 
+            # immediately
             if isinstance(res, tuple) and res and res[0] == 'error':
                 # res[1] is an API response tuple from api.get_exception
                 return res[1]
