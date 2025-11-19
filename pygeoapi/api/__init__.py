@@ -63,7 +63,6 @@ from pygeoapi.api.cache import (
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
-from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider.base import (
@@ -1248,40 +1247,40 @@ def describe_collections(api: API, request: APIRequest,
                             }
                         }
                     }
-                    if k in onto_mapping:
-                        if key not in onto_mapping[k]:
-                            continue
+                    # if k in onto_mapping:
+                    #     if key not in onto_mapping[k]:
+                    #         continue
 
-                        param_mapping = onto_mapping[k][key]
-                        collection['parameter_names'][key]['narrowerThan'] = [*param_mapping]
+                    #     param_mapping = onto_mapping[k][key]
+                    #     collection['parameter_names'][key]['narrowerThan'] = [*param_mapping]
 
-                        # Update shared parameter_groups safely
-                        for param, id in param_mapping.items():
-                            with parameter_groups_lock:
-                                if param not in parameter_groups:
-                                    parameter_groups[param] = {
-                                        'type': 'ParameterGroup',
-                                        'id': id,
-                                        'label': param,
-                                        'observedProperty': {
-                                            'id': param,
-                                            'label': {
-                                                'en': param
-                                            }
-                                        },
-                                        'members': [] if dataset else {}
-                                    }
+                    #     # Update shared parameter_groups safely
+                    #     for param, id in param_mapping.items():
+                    #         with parameter_groups_lock:
+                    #             if param not in parameter_groups:
+                    #                 parameter_groups[param] = {
+                    #                     'type': 'ParameterGroup',
+                    #                     'id': id,
+                    #                     'label': param,
+                    #                     'observedProperty': {
+                    #                         'id': param,
+                    #                         'label': {
+                    #                             'en': param
+                    #                         }
+                    #                     },
+                    #                     'members': [] if dataset else {}
+                    #                 }
 
-                                members = parameter_groups[param]['members']
-                                if dataset:
-                                    # dataset -> members is a list
-                                    members.append(key)
-                                else:
-                                    # top-level -> members is dict keyed by collection id
-                                    if k not in members:
-                                        members[k] = [key]
-                                    else:
-                                        members[k].append(key)
+                    #             members = parameter_groups[param]['members']
+                    #             if dataset:
+                    #                 # dataset -> members is a list
+                    #                 members.append(key)
+                    #             else:
+                    #                 # top-level -> members is dict keyed by collection id
+                    #                 if k not in members:
+                    #                     members[k] = [key]
+                    #                 else:
+                    #                     members[k].append(key)
 
             for qt in p.get_query_types():
                 data_query = {
