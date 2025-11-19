@@ -839,7 +839,19 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
 
     return headers, HTTPStatus.OK, to_json(conformance, api.pretty_print)
 
-
+@lru_cache_specific_args(
+    cache_keys=lambda api, request, dataset=None: (
+        api,
+        # QueryParams in starlette is not hashable
+        # thus we need to convert it to a tuple
+        # and sort it to make the cache key deterministic
+        tuple(sorted(request.params.items())),
+        request.format,
+        dataset,
+    ),
+    maxsize=10,
+    skip_caching_fn=lambda request: headers_require_revalidation(request),
+)
 @jsonldify
 def describe_collections(api: API, request: APIRequest,
                          dataset: str | None = None) -> Tuple[dict, int, str]:
