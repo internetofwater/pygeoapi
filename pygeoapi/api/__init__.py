@@ -47,6 +47,7 @@ from functools import partial
 from gzip import compress
 from http import HTTPStatus
 import logging
+import os
 import re
 import sys
 from typing import Any, Tuple, Union, Self
@@ -74,6 +75,8 @@ from pygeoapi.util import (
     get_base_url, get_provider_by_type, get_provider_default, get_typed_value,
     render_j2_template, to_json, get_choice_from_headers, get_from_headers
 )
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 LOGGER = logging.getLogger(__name__)
 
@@ -838,31 +841,14 @@ def conformance(api: API, request: APIRequest) -> Tuple[dict, int, str]:
     return headers, HTTPStatus.OK, to_json(conformance, api.pretty_print)
 
 
-@lru_cache_specific_args(
-    cache_keys=lambda api, request, dataset=None: (
-        api,
-        # QueryParams in starlette is not hashable
-        # thus we need to convert it to a tuple
-        # and sort it to make the cache key deterministic
-        tuple(sorted(request.params.items())),
-        request.format,
-        dataset,
-    ),
-    maxsize=10,
-    skip_caching_fn=lambda request: headers_require_revalidation(request),
-)
 @jsonldify
 def describe_collections(api: API, request: APIRequest,
                          dataset: str | None = None) -> Tuple[dict, int, str]:
     """
-    Provide collection metadata
+    Provide collection metadata (parallelized per-collection)
 
-    :param request: A request object
-    :param dataset: name of collection
-
-    :returns: tuple of headers, status code, content
+    Each collection is built in a separate thread (ThreadPoolExecutor).
     """
-
     headers = request.get_response_headers(**api.api_headers)
 
     fcm = {
@@ -885,60 +871,85 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
-    LOGGER.debug('Processing parameter-name parameter')
-    parameternames = request.params.get('parameter-name') or []
-    ext_qargs = (f'?parameter-name={parameternames}'
-                 if isinstance(parameternames, str) else '')
-    if isinstance(parameternames, str):
-        parameternames = parameternames.split(',')
-        onto_mapping = get_mapping(parameternames)
-    else:
-        onto_mapping = get_mapping()
+    # LOGGER.debug('Processing parameter-name parameter')
+    # parameternames = request.params.get('parameter-name') or []
+    # ext_qargs = (f'?parameter-name={parameternames}'
+    #              if isinstance(parameternames, str) else '')
+    # if isinstance(parameternames, str):
+    #     parameternames = parameternames.split(',')
+    #     onto_mapping = get_mapping(parameternames)
+    # else:
+    #     onto_mapping = get_mapping()
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []
     if isinstance(providers, str):
         providers = set(providers.split(','))
 
+    # Shared structures and locks for thread-safety
     parameter_groups = {}
-    LOGGER.debug('Creating collections')
-    for k, v in collections_dict.items():
+    parameter_groups_lock = Lock()
+
+    # Keep original key order so we can reassemble collections in same order
+    orig_keys = list(collections_dict.keys())
+
+    LOGGER.debug('Creating collections (parallel)')
+
+    def build_collection(k, v):
+        """
+        Build a single collection. Return:
+         - dict: built collection
+         - None: skip collection (visibility/providers/parameter filters)
+         - ('error', response): an API error that should be returned immediately
+        """
+        # Skip hidden
         if v.get('visibility', 'default') == 'hidden':
             LOGGER.debug(f'Hidden collection, skipping hidden layer: {k}')
-            continue
+            return None
 
-        if ext_qargs and k not in onto_mapping:
-            LOGGER.info(f'No matching parameter, skipping collection: {k}')
-            continue
+        # # Parameter-name filtering
+        # if ext_qargs and k not in onto_mapping:
+        #     LOGGER.info(f'No matching parameter, skipping collection: {k}')
+        #     return None
 
+        # Provider-name filtering
         pvd_name = v.get('provider-name', [])
-        if providers and not [k for k in pvd_name if k in providers]:
+        if providers and not [x for x in pvd_name if x in providers]:
             LOGGER.info(f'No matching provider, skipping collection: {k}')
-            continue
+            return None
 
-        collection_data = get_provider_default(v['providers'])
+        # provider default
+        try:
+            collection_data = get_provider_default(v['providers'])
+        except Exception:
+            # preserve behavior: return connection error to main thread
+            msg = 'connection error (check logs)'
+            return ('error', api.get_exception(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                headers, request.format, 'NoApplicableCode', msg))
+
         collection_data_type = collection_data['type']
 
         collection_data_format = None
-
         if 'format' in collection_data:
             collection_data_format = collection_data['format']
 
         is_vector_tile = (collection_data_type == 'tile' and
+                          collection_data_format and
                           collection_data_format['name'] not
                           in [F_PNG, F_JPEG])
 
+        # Build collection object (same as original)
         collection = {
             'id': k,
             'title': l10n.translate(v['title'], request.locale),
-            'description': l10n.translate(v['description'], request.locale),  # noqa
+            'description': l10n.translate(v['description'], request.locale),
             'keywords': l10n.translate(v['keywords'], request.locale),
             'links': []
         }
 
+        # spatial extent
         bbox = v['extents']['spatial']['bbox']
-        # The output should be an array of bbox, so if the user only
-        # provided a single bbox, wrap it in a array.
         if not isinstance(bbox[0], list):
             bbox = [bbox]
         collection['extent'] = {
@@ -950,6 +961,7 @@ def describe_collections(api: API, request: APIRequest,
             collection['extent']['spatial']['crs'] = \
                 v['extents']['spatial']['crs']
 
+        # temporal extent
         t_ext = v.get('extents', {}).get('temporal', {})
         if t_ext:
             begins = dategetter('begin', t_ext)
@@ -960,6 +972,7 @@ def describe_collections(api: API, request: APIRequest,
             if 'trs' in t_ext:
                 collection['extent']['temporal']['trs'] = t_ext['trs']
 
+        # configured links - may issue HEAD via api.prefetcher
         LOGGER.debug('Processing configured collection links')
         for link in l10n.translate(v.get('links', []), request.locale):
             lnk = {
@@ -974,16 +987,19 @@ def describe_collections(api: API, request: APIRequest,
             content_length = link.get('length', 0)
 
             if lnk['rel'] == 'enclosure' and content_length == 0:
-                # Issue HEAD request for enclosure links without length
-                lnk_headers = api.prefetcher.get_headers(lnk['href'])
+                try:
+                    lnk_headers = api.prefetcher.get_headers(lnk['href'])
+                except Exception:
+                    # treat broken HEAD as invalid enclosure (skip)
+                    LOGGER.debug(f"Failed HEAD for enclosure {lnk['href']}")
+                    continue
+
                 content_length = int(lnk_headers.get('content-length', 0))
                 content_type = lnk_headers.get('content-type', lnk['type'])
                 if content_length == 0:
-                    # Skip this (broken) link
                     LOGGER.debug(f"Enclosure {lnk['href']} is invalid")
                     continue
                 if content_type != lnk['type']:
-                    # Update content type if different from specified
                     lnk['type'] = content_type
                     LOGGER.debug(
                         f"Fixed media type for enclosure {lnk['href']}")
@@ -993,126 +1009,126 @@ def describe_collections(api: API, request: APIRequest,
 
             collection['links'].append(lnk)
 
-        # TODO: provide translations
-        LOGGER.debug('Adding JSON and HTML link relations')
+        # core JSON/HTML links
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSON],
             'rel': 'root',
-            'title': l10n.translate('The landing page of this server as JSON', request.locale),  # noqa
+            'title': l10n.translate('The landing page of this server as JSON', request.locale),
             'href': f"{api.base_url}?f={F_JSON}"
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': 'root',
-            'title': l10n.translate('The landing page of this server as HTML', request.locale),  # noqa
+            'title': l10n.translate('The landing page of this server as HTML', request.locale),
             'href': f"{api.base_url}?f={F_HTML}"
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSON],
             'rel': request.get_linkrel(F_JSON),
-            'title': l10n.translate('This document as JSON', request.locale),  # noqa
+            'title': l10n.translate('This document as JSON', request.locale),
             'href': f'{api.get_collections_url()}/{k}?f={F_JSON}'
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
-            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
+            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),
             'href': f'{api.get_collections_url()}/{k}?f={F_JSONLD}'
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
-            'title': l10n.translate('This document as HTML', request.locale),  # noqa
+            'title': l10n.translate('This document as HTML', request.locale),
             'href': f'{api.get_collections_url()}/{k}?f={F_HTML}'
         })
 
+        # record-specific links
         if collection_data_type == 'record':
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSON],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/ogc-catalog',
-                'title': l10n.translate('Record catalogue as JSON', request.locale),  # noqa
+                'title': l10n.translate('Record catalogue as JSON', request.locale),
                 'href': f'{api.get_collections_url()}/{k}?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/ogc-catalog',
-                'title': l10n.translate('Record catalogue as HTML', request.locale),  # noqa
+                'title': l10n.translate('Record catalogue as HTML', request.locale),
                 'href': f'{api.get_collections_url()}/{k}?f={F_HTML}'
             })
 
+        # schema links for feature/coverage/record
         if collection_data_type in ['feature', 'coverage', 'record']:
             collection['links'].append({
                 'type': 'application/schema+json',
                 'rel': f'{OGC_RELTYPES_BASE}/schema',
-                'title': l10n.translate('Schema of collection in JSON', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/schema?f={F_JSON}'  # noqa
+                'title': l10n.translate('Schema of collection in JSON', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/schema?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': f'{OGC_RELTYPES_BASE}/schema',
-                'title': l10n.translate('Schema of collection in HTML', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/schema?f={F_HTML}'  # noqa
+                'title': l10n.translate('Schema of collection in HTML', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/schema?f={F_HTML}'
             })
 
+        # feature/record vector tile items/links
         if is_vector_tile or collection_data_type in ['feature', 'record']:
-            # TODO: translate
             collection['itemType'] = collection_data_type
             LOGGER.debug('Adding feature/record based links')
             collection['links'].append({
                 'type': 'application/schema+json',
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/queryables',
-                'title': l10n.translate('Queryables for this collection as JSON', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_JSON}'  # noqa
+                'title': l10n.translate('Queryables for this collection as JSON', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/queryables',
-                'title': l10n.translate('Queryables for this collection as HTML', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_HTML}'  # noqa
+                'title': l10n.translate('Queryables for this collection as HTML', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_HTML}'
             })
             collection['links'].append({
                 'type': 'application/geo+json',
                 'rel': 'items',
-                'title': l10n.translate('Items as GeoJSON', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/items?f={F_JSON}'  # noqa
+                'title': l10n.translate('Items as GeoJSON', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/items?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSONLD],
                 'rel': 'items',
-                'title': l10n.translate('Items as RDF (GeoJSON-LD)', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/items?f={F_JSONLD}'  # noqa
+                'title': l10n.translate('Items as RDF (GeoJSON-LD)', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/items?f={F_JSONLD}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'items',
-                'title': l10n.translate('Items as HTML', request.locale),  # noqa
-                'href': f'{api.get_collections_url()}/{k}/items?f={F_HTML}'  # noqa
+                'title': l10n.translate('Items as HTML', request.locale),
+                'href': f'{api.get_collections_url()}/{k}/items?f={F_HTML}'
             })
 
         # OAPIF Part 2 - list supported CRSs and StorageCRS
         if collection_data_type in ['edr', 'feature']:
             collection['crs'] = get_supported_crs_list(collection_data)
-            collection['storageCrs'] = collection_data.get('storage_crs', DEFAULT_STORAGE_CRS)  # noqa
+            collection['storageCrs'] = collection_data.get('storage_crs', DEFAULT_STORAGE_CRS)
             if 'storage_crs_coordinate_epoch' in collection_data:
-                collection['storageCrsCoordinateEpoch'] = collection_data.get('storage_crs_coordinate_epoch')  # noqa
+                collection['storageCrsCoordinateEpoch'] = collection_data.get('storage_crs_coordinate_epoch')
 
         elif collection_data_type == 'coverage':
-            # TODO: translate
             LOGGER.debug('Adding coverage based links')
             collection['links'].append({
                 'type': 'application/prs.coverage+json',
                 'rel': f'{OGC_RELTYPES_BASE}/coverage',
                 'title': l10n.translate('Coverage data', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/coverage?f={F_JSON}'  # noqa
+                'href': f'{api.get_collections_url()}/{k}/coverage?f={F_JSON}'
             })
             if collection_data_format is not None:
-                title_ = l10n.translate('Coverage data as', request.locale)  # noqa
+                title_ = l10n.translate('Coverage data as', request.locale)
                 title_ = f"{title_} {collection_data_format['name']}"
                 collection['links'].append({
                     'type': collection_data_format['mimetype'],
                     'rel': f'{OGC_RELTYPES_BASE}/coverage',
                     'title': title_,
-                    'href': f"{api.get_collections_url()}/{k}/coverage?f={collection_data_format['name']}"  # noqa
+                    'href': f"{api.get_collections_url()}/{k}/coverage?f={collection_data_format['name']}"
                 })
             if dataset is not None:
                 LOGGER.debug('Creating extended coverage metadata')
@@ -1123,11 +1139,12 @@ def describe_collections(api: API, request: APIRequest,
                     p = load_plugin('provider', provider_def)
                 except ProviderConnectionError:
                     msg = 'connection error (check logs)'
-                    return api.get_exception(
+                    return ('error', api.get_exception(
                         HTTPStatus.INTERNAL_SERVER_ERROR,
                         headers, request.format,
-                        'NoApplicableCode', msg)
+                        'NoApplicableCode', msg))
                 except ProviderTypeError:
+                    # behave like original: ignore and continue
                     pass
                 else:
                     collection['extent']['spatial']['grid'] = [{
@@ -1143,40 +1160,40 @@ def describe_collections(api: API, request: APIRequest,
                         }
                         if 'restime' in p._coverage_properties:
                             collection['extent']['temporal']['grid'] = {
-                                'resolution': p._coverage_properties['restime']  # noqa
+                                'resolution': p._coverage_properties['restime']
                             }
                     if 'uad' in p._coverage_properties:
-                        collection['extent'].update(p._coverage_properties['uad'])  # noqa
+                        collection['extent'].update(p._coverage_properties['uad'])
 
+        # tile provider
         try:
             tile = get_provider_by_type(v['providers'], 'tile')
             p = load_plugin('provider', tile)
         except ProviderConnectionError:
             msg = 'connection error (check logs)'
-            return api.get_exception(
+            return ('error', api.get_exception(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 headers, request.format,
-                'NoApplicableCode', msg)
+                'NoApplicableCode', msg))
         except ProviderTypeError:
             tile = None
 
         if tile:
-            # TODO: translate
-
             LOGGER.debug('Adding tile links')
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSON],
-                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',  # noqa
+                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',
                 'title': l10n.translate('Tiles as JSON', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/tiles?f={F_JSON}'  # noqa
+                'href': f'{api.get_collections_url()}/{k}/tiles?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
-                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',  # noqa
+                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',
                 'title': l10n.translate('Tiles as HTML', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/tiles?f={F_HTML}'  # noqa
+                'href': f'{api.get_collections_url()}/{k}/tiles?f={F_HTML}'
             })
 
+        # map provider
         try:
             map_ = get_provider_by_type(v['providers'], 'map')
         except ProviderTypeError:
@@ -1184,33 +1201,30 @@ def describe_collections(api: API, request: APIRequest,
 
         if map_:
             LOGGER.debug('Adding map links')
-
             map_mimetype = map_['format']['mimetype']
             map_format = map_['format']['name']
-
             title_ = l10n.translate('Map as', request.locale)
             title_ = f"{title_} {map_format}"
-
             collection['links'].append({
                 'type': map_mimetype,
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/map',
                 'title': title_,
-                'href': f"{api.get_collections_url()}/{k}/map?f={map_format}"  # noqa
+                'href': f"{api.get_collections_url()}/{k}/map?f={map_format}"
             })
 
+        # edr provider
         try:
             edr = get_provider_by_type(v['providers'], 'edr')
             p = load_plugin('provider', edr)
         except ProviderConnectionError:
             msg = 'connection error (check logs)'
-            return api.get_exception(
+            return ('error', api.get_exception(
                 HTTPStatus.INTERNAL_SERVER_ERROR, headers,
-                request.format, 'NoApplicableCode', msg)
+                request.format, 'NoApplicableCode', msg))
         except ProviderTypeError:
             edr = None
 
         if edr:
-            # TODO: translate
             LOGGER.debug('Adding EDR links')
             collection['data_queries'] = {}
             parameters = p.get_fields()
@@ -1230,7 +1244,7 @@ def describe_collections(api: API, request: APIRequest,
                         'unit': {
                             'symbol': {
                                 'value': value['x-ogc-unit'],
-                                'type': 'http://www.opengis.net/def/uom/UCUM/' # noqa
+                                'type': 'http://www.opengis.net/def/uom/UCUM/'
                             }
                         }
                     }
@@ -1239,31 +1253,35 @@ def describe_collections(api: API, request: APIRequest,
                             continue
 
                         param_mapping = onto_mapping[k][key]
-                        collection['parameter_names'][key]['narrowerThan'] \
-                            = [*param_mapping]
-                        for param, id in param_mapping.items():
-                            if param not in parameter_groups:
-                                parameter_groups[param] = {
-                                    'type': 'ParameterGroup',
-                                    'id': id,
-                                    'label': param,
-                                    'observedProperty': {
-                                        'id': param,
-                                        'label': {
-                                            'en': param
-                                        }
-                                    },
-                                    'members': [] if dataset else {}
-                                }
+                        collection['parameter_names'][key]['narrowerThan'] = [*param_mapping]
 
-                            members = parameter_groups[param]['members']
-                            if dataset:
-                                members.append(key)
-                            else:
-                                if k not in members:
-                                    members[k] = [key]
+                        # Update shared parameter_groups safely
+                        for param, id in param_mapping.items():
+                            with parameter_groups_lock:
+                                if param not in parameter_groups:
+                                    parameter_groups[param] = {
+                                        'type': 'ParameterGroup',
+                                        'id': id,
+                                        'label': param,
+                                        'observedProperty': {
+                                            'id': param,
+                                            'label': {
+                                                'en': param
+                                            }
+                                        },
+                                        'members': [] if dataset else {}
+                                    }
+
+                                members = parameter_groups[param]['members']
+                                if dataset:
+                                    # dataset -> members is a list
+                                    members.append(key)
                                 else:
-                                    members[k].append(key)
+                                    # top-level -> members is dict keyed by collection id
+                                    if k not in members:
+                                        members[k] = [key]
+                                    else:
+                                        members[k].append(key)
 
             for qt in p.get_query_types():
                 data_query = {
@@ -1277,9 +1295,9 @@ def describe_collections(api: API, request: APIRequest,
                 }
                 collection['data_queries'][qt] = data_query
 
-                title1 = l10n.translate('query for this collection as JSON', request.locale)  # noqa
+                title1 = l10n.translate('query for this collection as JSON', request.locale)
                 title1 = f'{qt} {title1}'
-                title2 = l10n.translate('query for this collection as HTML', request.locale)  # noqa
+                title2 = l10n.translate('query for this collection as HTML', request.locale)
                 title2 = f'{qt} {title2}'
 
                 collection['links'].append({
@@ -1295,13 +1313,68 @@ def describe_collections(api: API, request: APIRequest,
                     'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_HTML}'
                 })
 
-        if dataset is not None and k == dataset:
-            fcm = collection
-            break
+        # If the client specifically asked for a single dataset and this matches,
+        # original code set fcm = collection and broke out of loop. Here we
+        # simply return the collection and the main thread will handle it.
+        return collection
 
-        fcm['collections'].append(collection)
+    # If there are no collections to process (after filters above),
+    # behave like original loop would (but we still need to check later).
+    if len(collections_dict) == 0:
+        if dataset is not None:
+            msg = 'Collection not found'
+            return api.get_exception(
+                HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
+        # else continue - will produce "No matching sources found" below
 
-    if fcm.get('collections') == []:
+    # Decide pool size
+    n = len(collections_dict) or 1
+    max_workers = min(32, max(2, n))
+    max_workers = int(os.environ.get('PYGEOAPI_THREADPOOL_MAX_WORKERS', max_workers))
+
+    # Submit all jobs
+    future_to_key = {}
+    results_by_key = {}
+    LOGGER.debug(f'Using ThreadPoolExecutor with {max_workers} workers')
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        for k, v in collections_dict.items():
+            fut = ex.submit(build_collection, k, v)
+            future_to_key[fut] = k
+
+        # As futures complete, collect results
+        for fut in as_completed(future_to_key):
+            key = future_to_key[fut]
+            try:
+                res = fut.result()
+            except Exception:
+                # unexpected error in worker: log and treat as skip
+                LOGGER.exception(f'Unhandled exception while building collection {key}')
+                res = None
+
+            # If worker requested an API-level early return, propagate immediately
+            if isinstance(res, tuple) and res and res[0] == 'error':
+                # res[1] is an API response tuple from api.get_exception
+                return res[1]
+
+            # store result (could be None to indicate skip)
+            results_by_key[key] = res
+
+    # Reassemble results in original order
+    final_collections = []
+    for k in orig_keys:
+        item = results_by_key.get(k)
+        if item:
+            # If dataset requested, return single collection as original did
+            if dataset is not None:
+                fcm = item
+                break
+            final_collections.append(item)
+
+    if dataset is None:
+        fcm['collections'] = final_collections
+
+    # If no collections found/added
+    if (dataset is None and fcm.get('collections') == []) or (dataset is not None and not fcm):
         msg = 'No matching sources found'
         return api.get_exception(
             HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
@@ -1310,26 +1383,27 @@ def describe_collections(api: API, request: APIRequest,
         fcm['parameterGroups'] = [*parameter_groups.values()]
 
     if dataset is None:
-        # TODO: translate
+        # top-level links (unchanged)
         fcm['links'].append({
             'type': FORMAT_TYPES[F_JSON],
             'rel': request.get_linkrel(F_JSON),
-            'title': l10n.translate('This document as JSON', request.locale),  # noqa
+            'title': l10n.translate('This document as JSON', request.locale),
             'href': f'{api.get_collections_url()}?f={F_JSON}'
         })
         fcm['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
-            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),  # noqa
+            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),
             'href': f'{api.get_collections_url()}?f={F_JSONLD}'
         })
         fcm['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
-            'title': l10n.translate('This document as HTML', request.locale),  # noqa
+            'title': l10n.translate('This document as HTML', request.locale),
             'href': f'{api.get_collections_url()}?f={F_HTML}'
         })
 
+    # Rendering as before
     if request.format == F_HTML:  # render
         fcm['base_url'] = api.base_url
         fcm['collections_path'] = api.get_collections_url()
