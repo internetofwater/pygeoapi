@@ -75,7 +75,6 @@ from pygeoapi.util import (
     render_j2_template, to_json, get_choice_from_headers, get_from_headers
 )
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
 
 LOGGER = logging.getLogger(__name__)
 
@@ -911,7 +910,8 @@ def describe_collections(api: API, request: APIRequest,
         Build a single collection. Return:
          - dict: built collection
          - None: skip collection (visibility/providers/parameter filters)
-         - ('error', response): an API error that should be returned immediately
+         - ('error', response): an API error that should be returned
+           immediately
         """
         # Skip hidden
         if v.get('visibility', 'default') == 'hidden':
@@ -1024,13 +1024,13 @@ def describe_collections(api: API, request: APIRequest,
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSON],
             'rel': 'root',
-            'title': l10n.translate('The landing page of this server as JSON', request.locale),
+            'title': l10n.translate('The landing page of this server as JSON', request.locale), # noqa
             'href': f"{api.base_url}?f={F_JSON}"
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': 'root',
-            'title': l10n.translate('The landing page of this server as HTML', request.locale),
+            'title': l10n.translate('The landing page of this server as HTML', request.locale), # noqa
             'href': f"{api.base_url}?f={F_HTML}"
         })
         collection['links'].append({
@@ -1042,13 +1042,13 @@ def describe_collections(api: API, request: APIRequest,
         collection['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
-            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),
+            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale), # noqa
             'href': f'{api.get_collections_url()}/{k}?f={F_JSONLD}'
         })
         collection['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
-            'title': l10n.translate('This document as HTML', request.locale),
+            'title': l10n.translate('This document as HTML', request.locale), # noqa
             'href': f'{api.get_collections_url()}/{k}?f={F_HTML}'
         })
 
@@ -1057,13 +1057,13 @@ def describe_collections(api: API, request: APIRequest,
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSON],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/ogc-catalog',
-                'title': l10n.translate('Record catalogue as JSON', request.locale),
+                'title': l10n.translate('Record catalogue as JSON', request.locale), # noqa
                 'href': f'{api.get_collections_url()}/{k}?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/ogc-catalog',
-                'title': l10n.translate('Record catalogue as HTML', request.locale),
+                'title': l10n.translate('Record catalogue as HTML', request.locale), # noqa
                 'href': f'{api.get_collections_url()}/{k}?f={F_HTML}'
             })
 
@@ -1072,13 +1072,13 @@ def describe_collections(api: API, request: APIRequest,
             collection['links'].append({
                 'type': 'application/schema+json',
                 'rel': f'{OGC_RELTYPES_BASE}/schema',
-                'title': l10n.translate('Schema of collection in JSON', request.locale),
+                'title': l10n.translate('Schema of collection in JSON', request.locale), # noqa
                 'href': f'{api.get_collections_url()}/{k}/schema?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': f'{OGC_RELTYPES_BASE}/schema',
-                'title': l10n.translate('Schema of collection in HTML', request.locale),
+                'title': l10n.translate('Schema of collection in HTML', request.locale), # noqa
                 'href': f'{api.get_collections_url()}/{k}/schema?f={F_HTML}'
             })
 
@@ -1089,14 +1089,14 @@ def describe_collections(api: API, request: APIRequest,
             collection['links'].append({
                 'type': 'application/schema+json',
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/queryables',
-                'title': l10n.translate('Queryables for this collection as JSON', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_JSON}'
+                'title': l10n.translate('Queryables for this collection as JSON', request.locale), # noqa
+                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_JSON}' # noqa
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'http://www.opengis.net/def/rel/ogc/1.0/queryables',
-                'title': l10n.translate('Queryables for this collection as HTML', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_HTML}'
+                'title': l10n.translate('Queryables for this collection as HTML', request.locale), # noqa
+                'href': f'{api.get_collections_url()}/{k}/queryables?f={F_HTML}' # noqa
             })
             collection['links'].append({
                 'type': 'application/geo+json',
@@ -1107,22 +1107,22 @@ def describe_collections(api: API, request: APIRequest,
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSONLD],
                 'rel': 'items',
-                'title': l10n.translate('Items as RDF (GeoJSON-LD)', request.locale),
+                'title': l10n.translate('Items as RDF (GeoJSON-LD)', request.locale), # noqa
                 'href': f'{api.get_collections_url()}/{k}/items?f={F_JSONLD}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
                 'rel': 'items',
                 'title': l10n.translate('Items as HTML', request.locale),
-                'href': f'{api.get_collections_url()}/{k}/items?f={F_HTML}'
+                'href': f'{api.get_collections_url()}/{k}/items?f={F_HTML}' # noqa
             })
 
         # OAPIF Part 2 - list supported CRSs and StorageCRS
         if collection_data_type in ['edr', 'feature']:
             collection['crs'] = get_supported_crs_list(collection_data)
-            collection['storageCrs'] = collection_data.get('storage_crs', DEFAULT_STORAGE_CRS)
+            collection['storageCrs'] = collection_data.get('storage_crs', DEFAULT_STORAGE_CRS) # noqa
             if 'storage_crs_coordinate_epoch' in collection_data:
-                collection['storageCrsCoordinateEpoch'] = collection_data.get('storage_crs_coordinate_epoch')
+                collection['storageCrsCoordinateEpoch'] = collection_data.get('storage_crs_coordinate_epoch') # noqa
 
         elif collection_data_type == 'coverage':
             LOGGER.debug('Adding coverage based links')
@@ -1139,7 +1139,7 @@ def describe_collections(api: API, request: APIRequest,
                     'type': collection_data_format['mimetype'],
                     'rel': f'{OGC_RELTYPES_BASE}/coverage',
                     'title': title_,
-                    'href': f"{api.get_collections_url()}/{k}/coverage?f={collection_data_format['name']}"
+                    'href': f"{api.get_collections_url()}/{k}/coverage?f={collection_data_format['name']}" # noqa
                 })
             if dataset is not None:
                 LOGGER.debug('Creating extended coverage metadata')
@@ -1174,7 +1174,7 @@ def describe_collections(api: API, request: APIRequest,
                                 'resolution': p._coverage_properties['restime']
                             }
                     if 'uad' in p._coverage_properties:
-                        collection['extent'].update(p._coverage_properties['uad'])
+                        collection['extent'].update(p._coverage_properties['uad']) # noqa
 
         # tile provider
         try:
@@ -1193,13 +1193,13 @@ def describe_collections(api: API, request: APIRequest,
             LOGGER.debug('Adding tile links')
             collection['links'].append({
                 'type': FORMAT_TYPES[F_JSON],
-                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',
+                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}', # noqa
                 'title': l10n.translate('Tiles as JSON', request.locale),
                 'href': f'{api.get_collections_url()}/{k}/tiles?f={F_JSON}'
             })
             collection['links'].append({
                 'type': FORMAT_TYPES[F_HTML],
-                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}',
+                'rel': f'http://www.opengis.net/def/rel/ogc/1.0/tilesets-{p.tile_type}', # noqa
                 'title': l10n.translate('Tiles as HTML', request.locale),
                 'href': f'{api.get_collections_url()}/{k}/tiles?f={F_HTML}'
             })
@@ -1289,7 +1289,7 @@ def describe_collections(api: API, request: APIRequest,
                     #                 # dataset -> members is a list
                     #                 members.append(key)
                     #             else:
-                    #                 # top-level -> members is dict keyed by collection id
+                    #                 # top-level -> members is dict keyed by collection id # noqa
                     #                 if k not in members:
                     #                     members[k] = [key]
                     #                 else:
@@ -1307,9 +1307,9 @@ def describe_collections(api: API, request: APIRequest,
                 }
                 collection['data_queries'][qt] = data_query
 
-                title1 = l10n.translate('query for this collection as JSON', request.locale)
+                title1 = l10n.translate('query for this collection as JSON', request.locale) # noqa
                 title1 = f'{qt} {title1}'
-                title2 = l10n.translate('query for this collection as HTML', request.locale)
+                title2 = l10n.translate('query for this collection as HTML', request.locale) # noqa
                 title2 = f'{qt} {title2}'
 
                 collection['links'].append({
@@ -1325,9 +1325,10 @@ def describe_collections(api: API, request: APIRequest,
                     'href': f'{api.get_collections_url()}/{k}/{qt}?f={F_HTML}'
                 })
 
-        # If the client specifically asked for a single dataset and this matches,
-        # original code set fcm = collection and broke out of loop. Here we
-        # simply return the collection and the main thread will handle it.
+        # If the client specifically asked for a single dataset and
+        # this matches, original code set fcm = collection and broke
+        #  out of loop. Here we simply return the collection and the
+        #  main thread will handle it.
         return collection
 
     # If there are no collections to process (after filters above),
@@ -1342,7 +1343,7 @@ def describe_collections(api: API, request: APIRequest,
     # Decide pool size
     n = len(collections_dict) or 1
     max_workers = min(32, max(2, n))
-    max_workers = int(os.environ.get('PYGEOAPI_THREADPOOL_MAX_WORKERS', max_workers))
+    max_workers = int(os.environ.get('PYGEOAPI_THREADPOOL_MAX_WORKERS', max_workers))  # noqa
 
     # Submit all jobs
     future_to_key = {}
@@ -1360,10 +1361,10 @@ def describe_collections(api: API, request: APIRequest,
                 res = fut.result()
             except Exception:
                 # unexpected error in worker: log and treat as skip
-                LOGGER.exception(f'Unhandled exception while building collection {key}')
+                LOGGER.exception(f'Unhandled exception while building collection {key}')  # noqa
                 res = None
 
-            # If worker requested an API-level early return, propagate 
+            # If worker requested an API-level early return, propagate
             # immediately
             if isinstance(res, tuple) and res and res[0] == 'error':
                 # res[1] is an API response tuple from api.get_exception
@@ -1387,7 +1388,7 @@ def describe_collections(api: API, request: APIRequest,
         fcm['collections'] = final_collections
 
     # If no collections found/added
-    if (dataset is None and fcm.get('collections') == []) or (dataset is not None and not fcm):
+    if (dataset is None and fcm.get('collections') == []) or (dataset is not None and not fcm): # noqa
         msg = 'No matching sources found'
         return api.get_exception(
             HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
@@ -1406,13 +1407,13 @@ def describe_collections(api: API, request: APIRequest,
         fcm['links'].append({
             'type': FORMAT_TYPES[F_JSONLD],
             'rel': request.get_linkrel(F_JSONLD),
-            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale),
+            'title': l10n.translate('This document as RDF (JSON-LD)', request.locale), # noqa
             'href': f'{api.get_collections_url()}?f={F_JSONLD}'
         })
         fcm['links'].append({
             'type': FORMAT_TYPES[F_HTML],
             'rel': request.get_linkrel(F_HTML),
-            'title': l10n.translate('This document as HTML', request.locale),
+            'title': l10n.translate('This document as HTML', request.locale), # noqa
             'href': f'{api.get_collections_url()}?f={F_HTML}'
         })
 
