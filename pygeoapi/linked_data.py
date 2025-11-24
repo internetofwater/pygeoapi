@@ -145,7 +145,7 @@ def jsonldify_collection(cls, collection: dict, locale_: str) -> dict:
     for parameter, values in parameters.items():
         symbol = values['unit']['symbol']
         try:
-            unit = symbol['type'] + symbol['value']
+            unit = symbol['type'] + symbol['value'].replace(' ', '+')
         except TypeError:
             continue
 
