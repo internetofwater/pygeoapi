@@ -886,8 +886,8 @@ def describe_collections(api: API, request: APIRequest,
     # parameternames = request.params.get('parameter-name') or []
     # ext_qargs = (f'?parameter-name={parameternames}'
     #              if isinstance(parameternames, str) else '')
-    # if isinstance(parameternames, str):
-    #     parameternames = parameternames.split(',')
+    if isinstance(parameternames, str):
+        parameternames = parameternames.split(',')
     #     onto_mapping = get_mapping(parameternames)
     # else:
     #     onto_mapping = get_mapping()
