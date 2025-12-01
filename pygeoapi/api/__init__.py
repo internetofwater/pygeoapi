@@ -50,6 +50,7 @@ import logging
 import os
 import re
 import sys
+import threading
 from typing import Any, Tuple, Union, Self
 
 from babel import Locale
@@ -63,6 +64,7 @@ from pygeoapi.api.cache import (
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider.base import (
@@ -882,15 +884,15 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
-    # LOGGER.debug('Processing parameter-name parameter')
-    # parameternames = request.params.get('parameter-name') or []
-    # ext_qargs = (f'?parameter-name={parameternames}'
-    #              if isinstance(parameternames, str) else '')
+    LOGGER.debug('Processing parameter-name parameter')
+    parameternames = request.params.get('parameter-name') or []
+    ext_qargs = (f'?parameter-name={parameternames}'
+                 if isinstance(parameternames, str) else '')
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
-    #     onto_mapping = get_mapping(parameternames)
-    # else:
-    #     onto_mapping = get_mapping()
+        onto_mapping = get_mapping(parameternames)
+    else:
+        onto_mapping = get_mapping()
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []
@@ -899,6 +901,7 @@ def describe_collections(api: API, request: APIRequest,
 
     # Shared structures and locks for thread-safety
     parameter_groups = {}
+    parameter_group_lock = threading.Lock()
 
     # Keep original key order so we can reassemble collections in same order
     orig_keys = list(collections_dict.keys())
@@ -919,9 +922,11 @@ def describe_collections(api: API, request: APIRequest,
             return None
 
         # # Parameter-name filtering
-        # if ext_qargs and k not in onto_mapping:
-        #     LOGGER.info(f'No matching parameter, skipping collection: {k}')
-        #     return None
+        if ext_qargs and k not in onto_mapping:
+            LOGGER.info(f'No matching parameter for {k}')
+            # For the time being, don't skip the entire collection;
+            # this is since the ontology work is still in progress
+            # return None
 
         # Provider-name filtering
         pvd_name = v.get('provider-name', [])
@@ -1259,41 +1264,41 @@ def describe_collections(api: API, request: APIRequest,
                             }
                         }
                     }
-                    # if k in onto_mapping:
-                    #     if key not in onto_mapping[k]:
-                    #         continue
+                    if k in onto_mapping:
+                        if key not in onto_mapping[k]:
+                            continue
 
-                    #     param_mapping = onto_mapping[k][key]
-                    #     collection['parameter_names'][key]['narrowerThan'] =
-                    # [*param_mapping]
+                        param_mapping = onto_mapping[k][key]
+                        collection['parameter_names'][key]['narrowerThan'] \
+                            = [*param_mapping]
 
-                    #     # Update shared parameter_groups safely
-                    #     for param, id in param_mapping.items():
-                    #         with parameter_groups_lock:
-                    #             if param not in parameter_groups:
-                    #                 parameter_groups[param] = {
-                    #                     'type': 'ParameterGroup',
-                    #                     'id': id,
-                    #                     'label': param,
-                    #                     'observedProperty': {
-                    #                         'id': param,
-                    #                         'label': {
-                    #                             'en': param
-                    #                         }
-                    #                     },
-                    #                     'members': [] if dataset else {}
-                    #                 }
+                        # Update shared parameter_groups safely
+                        for param, id in param_mapping.items():
+                            with parameter_group_lock:
+                                if param not in parameter_groups:
+                                    parameter_groups[param] = {
+                                        'type': 'ParameterGroup',
+                                        'id': id,
+                                        'label': param,
+                                        'observedProperty': {
+                                            'id': param,
+                                            'label': {
+                                                'en': param
+                                            }
+                                        },
+                                        'members': [] if dataset else {}
+                                    }
 
-                    #             members = parameter_groups[param]['members']
-                    #             if dataset:
-                    #                 # dataset -> members is a list
-                    #                 members.append(key)
-                    #             else:
-                    #                 # top-level -> members is dict keyed by collection id # noqa
-                    #                 if k not in members:
-                    #                     members[k] = [key]
-                    #                 else:
-                    #                     members[k].append(key)
+                                members = parameter_groups[param]['members']
+                                if dataset:
+                                    # dataset -> members is a list
+                                    members.append(key)
+                                else:
+                                    # top-level -> members is dict keyed by collection id # noqa
+                                    if k not in members:
+                                        members[k] = [key]
+                                    else:
+                                        members[k].append(key)
 
             for qt in p.get_query_types():
                 data_query = {
