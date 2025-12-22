@@ -77,6 +77,10 @@ def get_mapping(parameter_names: list = ['*']
     """
     resp = {}
 
+    VALUES = '''
+        ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
+                 skos:prefLabel ?concept_name .
+    '''
     if parameter_names != ['*']:
         values = ' '.join([f'<{p}>'
                            for p in parameter_names
@@ -90,12 +94,6 @@ def get_mapping(parameter_names: list = ['*']
 
         elif value_names:
             VALUES = f'VALUES ?concept_name {{ {value_names} }}\n'
-
-    else:
-        VALUES = '''
-            ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
-                     skos:prefLabel ?concept_name .
-        '''
 
     query = f'''
         {PREFIXES}
