@@ -60,7 +60,7 @@ class KeyTitleDict(TypedDict):
 @functools.cache
 def get_graph() -> Graph:
     GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH',
-                      THISDIR / 'ontology.ttl')
+                      THISDIR / 'ontology_min.ttl')
     return Graph().parse(GRAPH)
 
 
