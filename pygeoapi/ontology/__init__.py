@@ -115,8 +115,8 @@ def get_mapping(parameter_names: list = ['*']
     try:
         response = get_graph().query(query)
     except Exception:
-        LOGGER.error('Unable to parse query')
-        LOGGER.error(query)
+        msg = 'Unable to find parameter in ontology mapping'
+        LOGGER.warning(msg, exc_info=True)
         return {}
 
     for c in response:
