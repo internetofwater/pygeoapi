@@ -40,11 +40,11 @@ LOGGER = logging.getLogger(__name__)
 THISDIR = Path(__file__).parent.resolve()
 
 SELECT = (
-    "SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group"  # noqa
+    'SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group'  # noqa
 )
 
 SKOS_ANYMATCH = (
-    "(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)"  # noqa
+    '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)'  # noqa
 )
 
 PREFIXES = """
@@ -60,13 +60,16 @@ class KeyTitleDict(TypedDict):
     key: str
     title: str
 
+
 def get_graph() -> Graph:
-    GRAPH = os.getenv("PYGEOAPI_ONTOLOGY_GRAPH", THISDIR / "ontology_min.ttl")
+    GRAPH = os.getenv(
+        'PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl'
+    )
     return Graph().parse(GRAPH)
 
 
 def get_mapping(
-    parameter_names: list = ["*"],
+    parameter_names: list = ['*'],
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collectionad and parameters
@@ -81,9 +84,11 @@ def get_mapping(
 
 
 @functools.cache
-def _get_mapping(parameter_names: tuple) -> dict[str, dict[str, KeyTitleDict]]:
+def _get_mapping(
+    parameter_names: tuple
+) -> dict[str, dict[str, KeyTitleDict]]:
     """
-    Inner cacheable function to query Ontology graph for matching EDR collection
+    Inner cacheable function to query Ontology graph
     """
 
     VALUES = """
@@ -91,19 +96,19 @@ def _get_mapping(parameter_names: tuple) -> dict[str, dict[str, KeyTitleDict]]:
                  skos:prefLabel ?concept_name .
     """
 
-    if "*" not in parameter_names:
-        values = " ".join(
-            [f"<{p}>" for p in parameter_names if p.startswith("http")]
+    if '*' not in parameter_names:
+        values = ' '.join(
+            [f'<{p}>' for p in parameter_names if p.startswith('http')]
         )
-        value_names = " ".join(
-            [f'"{p}"@en' for p in parameter_names if not p.startswith("http")]
+        value_names = ' '.join(
+            [f'"{p}"@en' for p in parameter_names if not p.startswith('http')]
         )
 
         if values:
-            VALUES = f"VALUES ?concept {{ {values} }}"
+            VALUES = f'VALUES ?concept {{ {values} }}'
 
         elif value_names:
-            VALUES = f"VALUES ?concept_name {{ {value_names} }}\n"
+            VALUES = f'VALUES ?concept_name {{ {value_names} }}\n'
 
     query = f"""
         {PREFIXES}
@@ -136,8 +141,6 @@ def _get_mapping(parameter_names: tuple) -> dict[str, dict[str, KeyTitleDict]]:
         if pname not in resp[cid]:
             resp[cid][pname] = {}
 
-        resp[cid][pname].update(
-            {str(c.concept_name): str(c.concept_group)}
-        )
+        resp[cid][pname].update({str(c.concept_name): str(c.concept_group)})
 
     return resp
