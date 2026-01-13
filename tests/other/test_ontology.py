@@ -30,11 +30,18 @@
 import pytest
 from rdflib import Graph, Namespace, Literal
 from rdflib.namespace import RDF, SKOS
-from pygeoapi.ontology import get_mapping, get_graph
+
+from pygeoapi.ontology import get_mapping
 
 # Namespaces
 USBR = Namespace("http://lincolninst.edu/cgs/vocabularies/usbr#")
 VAR = Namespace("http://vocabulary.odm2.org/variablename/")
+
+
+@pytest.fixture(autouse=True)
+def cache_clear():
+    from pygeoapi.ontology import _get_mapping
+    _get_mapping.cache_clear()
 
 
 @pytest.fixture
@@ -84,7 +91,6 @@ def ontology_file(tmp_path):
 
 def test_env_mapping(monkeypatch, ontology_file):
     monkeypatch.setenv("PYGEOAPI_ONTOLOGY_GRAPH", str(ontology_file))
-    get_graph.cache_clear()
     result = get_mapping(['Storage'])
 
     assert 'rise-edr' in result
@@ -100,7 +106,6 @@ def test_env_mapping(monkeypatch, ontology_file):
 
 
 def test_get_mapping():
-    get_graph.cache_clear()
     result = get_mapping(['Storage'])
 
     assert 'rise-edr' in result
