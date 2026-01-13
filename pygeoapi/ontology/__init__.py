@@ -39,17 +39,21 @@ LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
-SELECT = 'SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group' # noqa
+SELECT = (
+    'SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group'  # noqa
+)
 
-SKOS_ANYMATCH = '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)' # noqa
+SKOS_ANYMATCH = (
+    '(skos:exactMatch|^skos:exactMatch|skos:broadMatch|^skos:broadMatch)'  # noqa
+)
 
-PREFIXES = '''
+PREFIXES = """
 PREFIX : <http://lincolninst.edu/cgs/vocabularies/usbr#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
-'''
+"""
 
 
 class KeyTitleDict(TypedDict):
@@ -57,37 +61,48 @@ class KeyTitleDict(TypedDict):
     title: str
 
 
-@functools.cache
 def get_graph() -> Graph:
-    GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH',
-                      THISDIR / 'ontology_min.ttl')
+    GRAPH = os.getenv(
+        'PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl'
+    )
     return Graph().parse(GRAPH)
 
 
-def get_mapping(parameter_names: list = ['*']
-                ) -> dict[str, dict[str, KeyTitleDict]]:
+def get_mapping(
+    parameter_names: list = ['*'],
+) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collectionad and parameters
     to create a dictionary mapping from OGC Collection to ODM2
     Vocabulary
 
-    :param parameter_names: `list` of ODM2 parameter shortnames or IRIs
+    :param parameter_names: `tuple` of ODM2 parameter shortnames or IRIs
 
     :returns: `dict` of ontology mapping
     """
-    resp = {}
+    return _get_mapping(tuple(parameter_names))
 
-    VALUES = '''
+
+@functools.cache
+def _get_mapping(
+    parameter_names: tuple
+) -> dict[str, dict[str, KeyTitleDict]]:
+    """
+    Inner cacheable function to query Ontology graph
+    """
+
+    VALUES = """
         ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
                  skos:prefLabel ?concept_name .
-    '''
-    if parameter_names != ['*']:
-        values = ' '.join([f'<{p}>'
-                           for p in parameter_names
-                           if p.startswith('http')])
-        value_names = ' '.join([f'"{p}"@en'
-                                for p in parameter_names
-                                if not p.startswith('http')])
+    """
+
+    if '*' not in parameter_names:
+        values = ' '.join(
+            [f'<{p}>' for p in parameter_names if p.startswith('http')]
+        )
+        value_names = ' '.join(
+            [f'"{p}"@en' for p in parameter_names if not p.startswith('http')]
+        )
 
         if values:
             VALUES = f'VALUES ?concept {{ {values} }}'
@@ -95,7 +110,7 @@ def get_mapping(parameter_names: list = ['*']
         elif value_names:
             VALUES = f'VALUES ?concept_name {{ {value_names} }}\n'
 
-    query = f'''
+    query = f"""
         {PREFIXES}
         {SELECT}
         WHERE {{
@@ -108,8 +123,7 @@ def get_mapping(parameter_names: list = ['*']
                     skos:broader/skos:hiddenLabel ?collection_id ;
                     skos:hiddenLabel ?parameter_id .
         }}
-    '''
-
+    """
     try:
         response = get_graph().query(query)
     except Exception:
@@ -117,13 +131,12 @@ def get_mapping(parameter_names: list = ['*']
         LOGGER.warning(msg, exc_info=True)
         return {}
 
+    resp: dict[str, dict[str, KeyTitleDict]] = {}
     for c in response:
         cid = str(c.collection_id)
         pname = str(c.parameter_id).replace('+', ' ')
         if cid not in resp:
-            resp[cid] = {
-                pname: {}
-            }
+            resp[cid] = {pname: {}}
 
         if pname not in resp[cid]:
             resp[cid][pname] = {}
