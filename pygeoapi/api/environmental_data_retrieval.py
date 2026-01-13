@@ -506,7 +506,7 @@ def get_collection_edr_query(api: API, request: APIRequest,
     elif request.format == F_JSONLD:
         if data['type'] == 'FeatureCollection':
             content = geojson2jsonld(
-                api, content, dataset, id_field=(p.uri_field or 'id')
+                api, data, dataset, id_field=(p.uri_field or 'id')
             )
         else:
             content = to_json({
