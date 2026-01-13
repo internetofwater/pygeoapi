@@ -90,7 +90,7 @@ def _get_mapping(parameter_names: tuple) -> dict[str, dict[str, KeyTitleDict]]:
         ?concept skos:topConceptOf :conceptScheme_8257cf0e ;
                  skos:prefLabel ?concept_name .
     """
-    # FILTER EXISTS { ?narrower skos:broader ?concept . }
+
     if "*" not in parameter_names:
         values = " ".join(
             [f"<{p}>" for p in parameter_names if p.startswith("http")]
