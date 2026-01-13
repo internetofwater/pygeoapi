@@ -81,6 +81,14 @@ class XarrayProvider(BaseProvider):
                     s3_options = provider_def['options']['s3']
                 else:
                     s3_options = {}
+
+                try:
+                    from com.env import wwdh_event_loop  # type: ignore
+                    if 'loop' not in s3_options:
+                        s3_options['loop'] = wwdh_event_loop
+                except ImportError as err:
+                    LOGGER.error(f'Could not import wwdh_event_loop: {err}')
+
                 LOGGER.debug(s3_options)
                 data_to_open = fsspec.get_mapper(self.data,
                                                  **s3_options)
