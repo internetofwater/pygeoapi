@@ -664,10 +664,6 @@ def landing_page(api: API,
                 request.locale)
     }
 
-    parameternames = request.params.get('parameter-name')
-    ext_qargs = (f'?parameter-name={parameternames}'
-                 if isinstance(parameternames, str) else '')
-
     LOGGER.debug('Creating links')
     # TODO: put title text in config or translatable files?
     fcm['links'] = [{
@@ -713,7 +709,7 @@ def landing_page(api: API,
         'rel': 'data',
         'type': FORMAT_TYPES[F_JSON],
         'title': l10n.translate('Collections', request.locale),
-        'href': api.get_collections_url() + ext_qargs
+        'href': api.get_collections_url()
     }, {
         'rel': f'{OGC_RELTYPES_BASE}/processes',
         'type': FORMAT_TYPES[F_JSON],
@@ -879,14 +875,10 @@ def describe_collections(api: API, request: APIRequest,
         collections_dict = collections
 
     LOGGER.debug('Processing parameter-name parameter')
-    parameternames = request.params.get('parameter-name') or []
+    parameternames = request.params.get('parameter-name') or ['*']
     ext_qargs = (f'?parameter-name={parameternames}'
                  if isinstance(parameternames, str) else '')
-    if isinstance(parameternames, str):
-        parameternames = parameternames.split(',')
-        onto_mapping = get_mapping(parameternames)
-    else:
-        onto_mapping = get_mapping()
+    onto_mapping = get_mapping(parameternames)
 
     LOGGER.debug('Processing provider-name parameter')
     providers = request.params.get('provider-name') or []

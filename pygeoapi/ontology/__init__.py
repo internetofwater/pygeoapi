@@ -69,7 +69,7 @@ def get_graph() -> Graph:
 
 
 def get_mapping(
-    parameter_names: list = ['*'],
+    parameter_names: str | list = ['*'],
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collectionad and parameters
@@ -80,6 +80,9 @@ def get_mapping(
 
     :returns: `dict` of ontology mapping
     """
+    if isinstance(parameter_names, str):
+        parameter_names = parameter_names.split(',')
+
     return _get_mapping(tuple(parameter_names))
 
 

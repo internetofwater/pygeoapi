@@ -64,7 +64,15 @@ class CSVFormatter(BaseFormatter):
 
         :returns: string representation of format
         """
+        type = data.get('type') or ''
+        LOGGER.debug(f'Formatting CSV from data type: {type}')
 
+        if 'Feature' in type or 'features' in data:
+            return self.write_from_geojson(options, data)
+        elif 'Coverage' in type or 'coverages' in data:
+            return self.write_from_covjson(options, data)
+
+    def write_from_geojson(self, options: dict = {}, data: dict = None) -> str:
         is_point = False
         try:
             fields = list(data['features'][0]['properties'].keys())
@@ -102,16 +110,7 @@ class CSVFormatter(BaseFormatter):
 
         return output.getvalue().encode('utf-8')
 
-    def __repr__(self):
-        return f'<CSVFormatter> {self.name}'
-
-
-class CSVCoverageFormatter(BaseFormatter):
-    def __init__(self, formatter_def: dict):
-        super().__init__({'name': 'csv'})
-        self.mimetype = 'text/csv; charset=utf-8'
-
-    def write(self, options: dict = {}, data: dict = None) -> str:
+    def write_from_covjson(self, options: dict = {}, data: dict = None) -> str:
         """
         Generate data in CSV format
 
@@ -167,3 +166,6 @@ class CSVCoverageFormatter(BaseFormatter):
         except ValueError as err:
             LOGGER.error(err)
             raise FormatterSerializationError('Error writing CSV output')
+
+    def __repr__(self):
+        return f'<CSVFormatter> {self.name}'
