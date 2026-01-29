@@ -47,6 +47,7 @@ from functools import partial
 from gzip import compress
 from http import HTTPStatus
 import logging
+import os
 import re
 import sys
 from typing import Any, Tuple, Union, Self
@@ -1346,7 +1347,7 @@ def describe_collections(api: API, request: APIRequest,
 
     LOGGER.debug('Creating collections')
 
-    max_workers = min(32, len(collections_dict) or 1)
+    max_workers = min(os.getenv("PYGEOAPI_COLLECTIONS_WORKERS", 12), len(collections_dict) or 1) # noqa
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
