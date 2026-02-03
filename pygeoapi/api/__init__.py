@@ -61,6 +61,7 @@ from pygeoapi.api.collection import gen_collection, OGC_RELTYPES_BASE
 from pygeoapi.formats import FORMAT_TYPES, F_GZIP, F_HTML, F_JSON, F_JSONLD
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
+from pygeoapi.ontology import get_mapping, apply_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider import filter_providers_by_type, get_provider_by_type
@@ -997,12 +998,30 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
+    LOGGER.debug('Processing provider-name parameter')
+    providers = request.params.get('provider-name') or []
+    if isinstance(providers, str):
+        providers = set(providers.split(','))
+
+    LOGGER.debug('Processing parameter-name parameter')
+    parameter_groups = {}
+    parameternames = request.params.get('parameter-name')
+    if isinstance(parameternames, str):
+        parameternames = set(parameternames.split(','))
+    onto_mapping = get_mapping(parameternames)
+
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
             LOGGER.debug(f'Skipping hidden layer: {k}')
             continue
-
+        if parameternames and k not in onto_mapping:
+            LOGGER.info(f'No matching parameter, skipping collection: {k}')
+            continue
+        pvd_name = v.get('provider-name', [])
+        if providers and not [k for k in pvd_name if k in providers]:
+            LOGGER.info(f'No matching provider, skipping collection: {k}')
+            continue
         try:
             fcm['collections'].append(
                 gen_collection(api, request, k, request.locale))
@@ -1017,6 +1036,14 @@ def describe_collections(api: API, request: APIRequest,
 
     if dataset is not None:
         fcm = fcm['collections'][0]
+
+    if fcm.get('collections') == []:
+        msg = 'No matching sources found'
+        return api.get_exception(
+            HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
+
+    if parameter_groups != {}:
+        fcm['parameterGroups'] = [*parameter_groups.values()]
 
     if dataset is None:
         # TODO: translate
