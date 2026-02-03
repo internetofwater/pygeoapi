@@ -46,6 +46,7 @@ import yaml
 from pygeoapi import l10n
 from pygeoapi.api import all_apis
 from pygeoapi.models.openapi import OAPIFormat
+from pygeoapi.ontology import get_oas_parameter
 from pygeoapi.util import (filter_dict_by_key_value, to_json, yaml_load,
                            get_api_rules, get_base_url, SCHEMASDIR)
 
@@ -358,6 +359,7 @@ def get_oas_30(cfg: dict, fail_on_invalid_collection: bool = True) -> dict:
             'tags': ['server'],
             'operationId': 'getCollections',
             'parameters': [
+                get_oas_parameter(),
                 {'$ref': '#/components/parameters/f'},
                 {'$ref': '#/components/parameters/lang'}
             ],
@@ -368,6 +370,25 @@ def get_oas_30(cfg: dict, fail_on_invalid_collection: bool = True) -> dict:
             }
         }
     }
+
+    providers = set()
+    for v in get_visible_collections(cfg).values():
+        if v.get('provider-name'):
+            providers.update(v['provider-name'])
+
+    if len(providers) > 0:
+        paths['/collections']['get']['parameters'].append({
+            'name': 'provider-name',
+            'in': 'query',
+            'description': 'Provider or the data',
+            'required': False,
+            'schema': {
+                'type': 'array',
+                'items': {'type': 'string', 'enum': list(providers)},
+                'style': 'form',
+                'explode': False
+            }
+        })
 
     oas['tags'].append({
             'name': 'server',

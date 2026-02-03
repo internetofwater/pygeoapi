@@ -28,9 +28,13 @@
 # =================================================================
 """Plugin loader"""
 
+import functools
+import json
 import importlib
 import logging
-from typing import Any
+import os
+from typing import Any, Callable
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -104,6 +108,27 @@ PLUGINS = {
 }
 
 
+def cache_plugin(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to cache loaded plugins based on their definition"""
+
+    if os.getenv("PYGEOAPI_CACHE_PLUGINS", False) is False:
+        return fn
+
+    @functools.cache
+    def _cached(plugin_type: str, plugin_def_json: str) -> Any:
+        LOGGER.debug(f'Loading cached plugin for {plugin_type}')
+        plugin_def = json.loads(plugin_def_json)
+        return fn(plugin_type, plugin_def)
+
+    @functools.wraps(fn)
+    def wrapper(plugin_type: str, plugin_def: dict) -> Any:
+        plugin_def_json = json.dumps(plugin_def, sort_keys=True)
+        return _cached(plugin_type, plugin_def_json)
+
+    return wrapper
+
+
+@cache_plugin
 def load_plugin(plugin_type: str, plugin_def: dict) -> Any:
     """
     loads plugin by name
