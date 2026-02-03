@@ -118,6 +118,7 @@ jobs:
     - name: Install requirements 📦
       run: |
         pip3 install setuptools
+        pip3 install GDAL==`gdal-config --version`
         pip3 install git+https://github.com/cgs-earth/pygeoapi-plugins.git
         pip3 install -r requirements.txt
         pip3 install -r requirements-admin.txt
@@ -128,7 +129,6 @@ jobs:
         pip3 install -r requirements-django.txt
         pip3 install -r requirements-pubsub.txt
         pip3 install .
-        pip3 install GDAL==`gdal-config --version`
     - name: setup test data ⚙️
       run: |
         pybabel compile -d locale -l es

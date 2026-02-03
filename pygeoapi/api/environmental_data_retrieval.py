@@ -53,6 +53,7 @@ from pygeoapi.formats import F_COVERAGEJSON, F_HTML, F_JSON, F_JSONLD
 from pygeoapi.formatter.base import FormatterSerializationError
 from pygeoapi.crs import (create_crs_transform_spec, set_content_crs_header)
 from pygeoapi.openapi import get_oas_30_parameters
+from pygeoapi.ontology import get_mapping, apply_mapping, get_oas_parameter
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider import filter_providers_by_type, get_provider_by_type
 from pygeoapi.provider.base import (
@@ -338,7 +339,8 @@ def get_collection_edr_query(api: API, request: APIRequest,
             'InvalidParameterValue', msg)
 
     LOGGER.debug('Processing parameter-name parameter')
-    parameternames = request.params.get('parameter-name') or []
+    parameternames = request.params.get('parameter-name')
+    onto_mapping = get_mapping(parameternames)
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
 
@@ -440,6 +442,26 @@ def get_collection_edr_query(api: API, request: APIRequest,
         return api.get_exception(
             err.http_status_code, headers, request.format,
             err.ogc_exception_code, err.message)
+
+    if data.get('parameters') and dataset in onto_mapping:
+        parameter_groups = {}
+        parameters = (
+            data['parameters']
+            if isinstance(data['parameters'], dict) else
+            {p['id']: p for p in data['parameters']}
+        )
+        for parameter in parameters:
+            apply_mapping(
+                parameters=parameters,
+                onto_mapping=onto_mapping,
+                parameter_groups=parameter_groups,
+                dataset=dataset,
+                parameter=parameter,
+                single_dataset=True
+            )
+
+        if parameter_groups != {}:
+            data['parameterGroups'] = list(parameter_groups.values())
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)
@@ -598,7 +620,7 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'parameters': [
                             spatial_parameter,
                             {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqa
-                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"},  # noqa
+                            get_oas_parameter(k),
                             {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/z.yaml"},  # noqa
                             {'$ref': '#/components/parameters/crs'},
                             coll_f_parameter,
@@ -683,7 +705,7 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'parameters': [
                             {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/locationId.yaml"},  # noqa
                             {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/parameters/datetime"},  # noqa
-                            {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/parameter-name.yaml"},  # noqa
+                            get_oas_parameter(k),
                             {'$ref': '#/components/parameters/crs'},
                             {'$ref': '#/components/parameters/f'}
                         ],
