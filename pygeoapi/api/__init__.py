@@ -60,6 +60,7 @@ from pygeoapi import __version__, l10n
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
+from pygeoapi.ontology import get_mapping, apply_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider import (
@@ -1023,10 +1024,29 @@ def describe_collections(api: API, request: APIRequest,
     else:
         collections_dict = collections
 
+    LOGGER.debug('Processing provider-name parameter')
+    providers = request.params.get('provider-name') or []
+    if isinstance(providers, str):
+        providers = set(providers.split(','))
+
+    LOGGER.debug('Processing parameter-name parameter')
+    parameter_groups = {}
+    parameternames = request.params.get('parameter-name')
+    if isinstance(parameternames, str):
+        parameternames = set(parameternames.split(','))
+    onto_mapping = get_mapping(parameternames)
+
     LOGGER.debug('Creating collections')
     for k, v in collections_dict.items():
         if v.get('visibility', 'default') == 'hidden':
             LOGGER.debug(f'Skipping hidden layer: {k}')
+            continue
+        if parameternames and k not in onto_mapping:
+            LOGGER.info(f'No matching parameter, skipping collection: {k}')
+            continue
+        pvd_name = v.get('provider-name', [])
+        if providers and not [k for k in pvd_name if k in providers]:
+            LOGGER.info(f'No matching provider, skipping collection: {k}')
             continue
         collection_data = get_provider_default(v['providers'])
         collection_data_type = collection_data['type']
@@ -1406,6 +1426,13 @@ def describe_collections(api: API, request: APIRequest,
                         'description': value['description']}
                             if 'description' in value else {}
                     )
+                    apply_mapping(
+                        parameters=collection['parameter_names'],
+                        onto_mapping=onto_mapping,
+                        parameter_groups=parameter_groups,
+                        dataset=k,
+                        parameter=key
+                    )
 
             for qt in p.get_query_types():
                 data_query = {
@@ -1455,6 +1482,14 @@ def describe_collections(api: API, request: APIRequest,
             break
 
         fcm['collections'].append(collection)
+
+    if fcm.get('collections') == []:
+        msg = 'No matching sources found'
+        return api.get_exception(
+            HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
+
+    if parameter_groups != {}:
+        fcm['parameterGroups'] = [*parameter_groups.values()]
 
     if dataset is None:
         # TODO: translate
