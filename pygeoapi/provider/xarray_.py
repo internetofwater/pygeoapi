@@ -51,8 +51,7 @@ LOGGER = logging.getLogger(__name__)
 try:
     from com.env import get_loop
 except ImportError:
-    LOGGER.debug('Could not import get_loop from com.env; ' \
-    'skipping custom async support for xarray provider')
+    LOGGER.debug('Could not import get_loop from com.env;')
     get_loop = None
 
 
