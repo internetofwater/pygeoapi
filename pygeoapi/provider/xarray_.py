@@ -90,6 +90,8 @@ class XarrayProvider(BaseProvider):
                     s3_options = provider_def['options']['s3']
                 else:
                     s3_options = {}
+                if get_loop is not None:
+                    s3_options['loop'] = get_loop()
                 LOGGER.debug(s3_options)
                 data_to_open = fsspec.get_mapper(self.data,
                                                  **s3_options)
