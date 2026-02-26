@@ -527,7 +527,7 @@ def get_collection_edr_query(api: API, request: APIRequest,
 
             cd = f'attachment; filename="{filename}"'
             headers['Content-Disposition'] = cd
-
+            headers['Content-Type'] = formatter.mimetype
     else:
         headers['Content-Type'] = 'application/vnd.cov+json'
         content = to_json(data, api.pretty_print)
