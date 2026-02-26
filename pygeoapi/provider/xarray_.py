@@ -39,7 +39,7 @@ import fsspec
 import numpy as np
 import pyproj
 
-from pygeoapi.event_loop import get_custom_event_loop
+from pygeoapi.custom_event_loop import get_custom_event_loop
 from pygeoapi.crs import DEFAULT_CRS, DEFAULT_STORAGE_CRS, get_crs, get_srid
 from pygeoapi.provider.base import (BaseProvider,
                                     ProviderConnectionError,
