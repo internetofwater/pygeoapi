@@ -39,6 +39,7 @@ import fsspec
 import numpy as np
 import pyproj
 
+from pygeoapi.event_loop import get_custom_event_loop
 from pygeoapi.crs import DEFAULT_CRS, DEFAULT_STORAGE_CRS, get_crs, get_srid
 from pygeoapi.provider.base import (BaseProvider,
                                     ProviderConnectionError,
@@ -47,12 +48,6 @@ from pygeoapi.provider.base import (BaseProvider,
 from pygeoapi.util import read_data
 
 LOGGER = logging.getLogger(__name__)
-
-try:
-    from com.env import get_loop
-except ImportError:
-    LOGGER.debug('Could not import get_loop from com.env;')
-    get_loop = None
 
 
 class XarrayProvider(BaseProvider):
@@ -68,8 +63,8 @@ class XarrayProvider(BaseProvider):
         super().__init__(provider_def)
 
         open_options = {}
-        if get_loop is not None:
-            open_options['loop'] = get_loop()
+        if get_custom_event_loop is not None:
+            open_options["loop"] = get_custom_event_loop()
 
         squeeze = provider_def.get('options', {}).get('squeeze', False)
         zarr_options = provider_def.get('options', {}).get('zarr', {})
@@ -90,8 +85,8 @@ class XarrayProvider(BaseProvider):
                     s3_options = provider_def['options']['s3']
                 else:
                     s3_options = {}
-                if get_loop is not None:
-                    s3_options['loop'] = get_loop()
+                if get_custom_event_loop is not None:
+                    s3_options["loop"] = get_custom_event_loop()
                 LOGGER.debug(s3_options)
                 data_to_open = fsspec.get_mapper(self.data,
                                                  **s3_options)
