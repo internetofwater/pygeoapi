@@ -48,6 +48,12 @@ from pygeoapi.util import read_data
 
 LOGGER = logging.getLogger(__name__)
 
+try:
+    from com.env import get_loop
+except ImportError:
+    LOGGER.debug('Could not import get_loop from com.env; skipping custom async support for xarray provider')
+    get_loop = None
+
 
 class XarrayProvider(BaseProvider):
     """Xarray Provider"""
@@ -62,6 +68,9 @@ class XarrayProvider(BaseProvider):
         super().__init__(provider_def)
 
         open_options = {}
+        if get_loop is not None:
+            open_options['loop'] = get_loop()
+
         squeeze = provider_def.get('options', {}).get('squeeze', False)
         zarr_options = provider_def.get('options', {}).get('zarr', {})
 
