@@ -42,6 +42,7 @@ from pygeoapi import l10n
 from pygeoapi.formats import (F_JSON, F_JSONLD, F_HTML, F_JPEG,
                               F_PNG, FORMAT_TYPES)
 from pygeoapi.crs import DEFAULT_STORAGE_CRS, get_supported_crs_list
+from pygeoapi.ontology import get_mapping, apply_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.provider import get_provider_by_type, get_provider_default
 from pygeoapi.provider.base import ProviderConnectionError, ProviderTypeError
@@ -53,13 +54,14 @@ OGC_RELTYPES_BASE = 'http://www.opengis.net/def/rel/ogc/1.0'
 
 
 def gen_collection(api, request, dataset: str,
-                   locale_: str) -> dict:
+                   locale_: str, parameter_groups: dict) -> dict:
     """
     Generate OGC API Collection description
 
     :param api: `APIRequest` object
     :param dataset: `str` of dataset name
     :param locale_: `str` of requested locale
+    :param parameter_groups: `dict` of parameter groups for this collection
 
     :returns: `dict` of OGC API Collection description
     """
@@ -399,6 +401,10 @@ def gen_collection(api, request, dataset: str,
     if edr:
         # TODO: translate
         LOGGER.debug('Adding EDR links')
+        parameternames = request.params.get('parameter-name')
+        if isinstance(parameternames, str):
+            parameternames = set(parameternames.split(','))
+        onto_mapping = get_mapping(parameternames)
         data['data_queries'] = {}
         parameters = p.get_fields()
         if parameters:
@@ -431,6 +437,14 @@ def gen_collection(api, request, dataset: str,
                             'en': p_description
                         }
                     })
+
+                apply_mapping(
+                    parameters=data['parameter_names'],
+                    onto_mapping=onto_mapping,
+                    parameter_groups=parameter_groups,
+                    dataset=dataset,
+                    parameter=key
+                )
 
         for qt in p.get_query_types():
             data_query = {
