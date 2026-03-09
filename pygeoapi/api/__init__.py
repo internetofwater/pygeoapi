@@ -61,7 +61,7 @@ from pygeoapi.api.collection import gen_collection, OGC_RELTYPES_BASE
 from pygeoapi.formats import FORMAT_TYPES, F_GZIP, F_HTML, F_JSON, F_JSONLD
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
 from pygeoapi.log import setup_logger
-from pygeoapi.ontology import get_mapping, apply_mapping
+from pygeoapi.ontology import get_mapping
 from pygeoapi.plugin import load_plugin
 from pygeoapi.process.manager.base import get_manager
 from pygeoapi.provider import filter_providers_by_type, get_provider_by_type
@@ -1024,7 +1024,10 @@ def describe_collections(api: API, request: APIRequest,
             continue
         try:
             fcm['collections'].append(
-                gen_collection(api, request, k, request.locale))
+                gen_collection(
+                    api, request, k, request.locale, parameter_groups
+                )
+            )
         except Exception as err:
             LOGGER.warning(f'Error generating collection {k}: {err}')
             if dataset is None:
