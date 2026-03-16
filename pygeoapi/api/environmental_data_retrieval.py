@@ -344,6 +344,9 @@ def get_collection_edr_query(api: API, request: APIRequest,
     if isinstance(parameternames, str):
         parameternames = parameternames.split(',')
 
+        if dataset in onto_mapping:
+            parameternames = list(onto_mapping[dataset])
+
     bbox = None
     if query_type in ['cube', 'locations']:
         LOGGER.debug('Processing cube bbox')
