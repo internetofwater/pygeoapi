@@ -414,8 +414,9 @@ def gen_collection(api, request, dataset: str,
                 p_description = value.get('description')
                 data['parameter_names'][key] = {
                     'id': key,
-                    # this is a key that was previously present; it is not part of the 
-                    # spec but doesn't deviate either; used for compatibility; eventually
+                    # this is a key that was previously present;
+                    # it is not part of the spec but doesn't deviate
+                    #  either; used for compatibility; eventually
                     # it can be removed
                     'name': p_label,
                     'type': 'Parameter',
