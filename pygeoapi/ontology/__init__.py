@@ -215,6 +215,9 @@ def apply_mapping(
                 'type': 'ParameterGroup',
                 'id': id,
                 'label': param,
+                # this name key is a holdout for compatibility reasons
+                # it can eventually be removed once the frontend no longer depends on it
+                'name': param,
                 'observedProperty': {
                     'id': param,
                     'label': {'en': param}
