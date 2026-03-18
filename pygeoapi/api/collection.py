@@ -412,14 +412,14 @@ def gen_collection(api, request, dataset: str,
         onto_mapping = get_mapping(parameternames)
         data['data_queries'] = {}
         data['parameter_names'] = p.get_parameters()
-
-                apply_mapping(
-                    parameters=data['parameter_names'],
-                    onto_mapping=onto_mapping,
-                    parameter_groups=parameter_groups,
-                    dataset=dataset,
-                    parameter=key
-                )
+        for parameter in data['parameter_names']:
+            apply_mapping(
+                parameters=data['parameter_names'],
+                onto_mapping=onto_mapping,
+                parameter_groups=parameter_groups,
+                dataset=dataset,
+                parameter=parameter
+            )
 
         for qt in p.get_query_types():
             data_query = {
