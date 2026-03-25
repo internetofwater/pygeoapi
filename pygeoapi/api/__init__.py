@@ -1048,14 +1048,6 @@ def describe_collections(api: API, request: APIRequest,
     if parameter_groups != {}:
         fcm['parameterGroups'] = [*parameter_groups.values()]
 
-    if fcm.get('collections') == []:
-        msg = 'No matching sources found'
-        return api.get_exception(
-            HTTPStatus.NOT_FOUND, headers, request.format, 'NotFound', msg)
-
-    if parameter_groups != {}:
-        fcm['parameterGroups'] = [*parameter_groups.values()]
-
     if dataset is None:
         # TODO: translate
         fcm['links'].append({
