@@ -5,7 +5,7 @@
 #          Colin Blackburn <colb@bgs.ac.uk>
 #          Bernhard Mallinger <bernhard.mallinger@eox.at>
 #
-# Copyright (c) 2024 Tom Kralidis
+# Copyright (c) 2026 Tom Kralidis
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
 #
 # Permission is hereby granted, free of charge, to any person
@@ -37,12 +37,28 @@ from http import HTTPStatus
 import time
 from unittest import mock
 
-from pygeoapi.api import FORMAT_TYPES, F_HTML, F_JSON
+import pytest
+
+from pygeoapi.api import API
 from pygeoapi.api.processes import (
     describe_processes, execute_process, delete_job, get_job_result, get_jobs
 )
+from pygeoapi.formats import FORMAT_TYPES, F_HTML, F_JSON
+from pygeoapi.util import yaml_load
 
-from tests.util import mock_api_request
+from tests.util import get_test_file_path, mock_api_request
+
+
+@pytest.fixture()
+def config_process_metadata() -> dict:
+    """ Returns a pygeoapi configuration with process metadata."""
+    with open(get_test_file_path('pygeoapi-test-config-process-metadata.yml')) as fh:  # noqa
+        return yaml_load(fh)
+
+
+@pytest.fixture()
+def api_process_metadata(config_process_metadata, openapi):
+    return API(config_process_metadata, openapi)
 
 
 def test_describe_processes(config, api_):
@@ -143,13 +159,30 @@ def test_describe_processes(config, api_):
 
     # Test describe doesn't crash if example is missing
     req = mock_api_request()
-    processor = api_.manager.get_processor("hello-world")
-    example = processor.metadata.pop("example")
+    processor = api_.manager.get_processor('hello-world')
+    example = processor.metadata.pop('example')
     rsp_headers, code, response = describe_processes(api_, req)
     processor.metadata['example'] = example
     data = json.loads(response)
     assert code == HTTPStatus.OK
     assert len(data['processes']) == 2
+
+
+def test_describe_processes_metadata(config_process_metadata,
+                                     api_process_metadata):
+
+    req = mock_api_request({'limit': 1})
+    # Test for description of single processes
+    rsp_headers, code, response = describe_processes(
+        api_process_metadata, req, 'echo')
+    data = json.loads(response)
+    assert code == HTTPStatus.OK
+    assert len(data['jobControlOptions']) == 2
+    assert 'sync-execute' in data['jobControlOptions']
+    assert 'async-execute' in data['jobControlOptions']
+    assert len(data['outputTransmission']) == 2
+    assert 'value' in data['outputTransmission']
+    assert 'reference' in data['outputTransmission']
 
 
 def test_execute_process(config, api_):
@@ -331,8 +364,10 @@ def test_execute_process(config, api_):
     req = mock_api_request(data=req_body_1, HTTP_Prefer='respond-async')
     rsp_headers, code, response = execute_process(api_, req, 'hello-world')
 
-    assert 'Location' in rsp_headers
+    response = json.loads(response)
     assert code == HTTPStatus.CREATED
+
+    assert 'Location' in rsp_headers
     assert isinstance(response, dict)
     assert 'jobID' in response
     assert 'type' in response

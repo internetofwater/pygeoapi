@@ -49,6 +49,7 @@ from http import HTTPStatus
 from typing import Tuple
 
 from pygeoapi import l10n
+from pygeoapi.formats import FORMAT_TYPES, F_HTML, F_JSON, F_JSONLD
 from pygeoapi.api import evaluate_limit
 from pygeoapi.api.pubsub import publish_message
 from pygeoapi.process.base import (
@@ -61,9 +62,7 @@ from pygeoapi.util import (
     json_serial, render_j2_template, JobStatus, RequestedProcessExecutionMode,
     to_json, DATETIME_FORMAT)
 
-from . import (
-    APIRequest, API, SYSTEM_LOCALE, F_JSON, FORMAT_TYPES, F_HTML, F_JSONLD,
-)
+from . import APIRequest, API, SYSTEM_LOCALE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -131,11 +130,16 @@ def describe_processes(api: API, request: APIRequest,
                 p2.pop('outputs')
                 p2.pop('example', None)
 
-            p2['jobControlOptions'] = ['sync-execute']
-            if api.manager.is_async:
+            jco = p.metadata.get('jobControlOptions', ['sync-execute'])
+            p2['jobControlOptions'] = jco
+
+            if api.manager.is_async and 'async-execute' not in jco:
+                LOGGER.debug('Adding async capability')
                 p2['jobControlOptions'].append('async-execute')
 
-            p2['outputTransmission'] = ['value']
+            p2['outputTransmission'] = p.metadata.get(
+                'outputTransmission', ['value'])
+
             p2['links'] = p2.get('links', [])
 
             jobs_url = f"{api.base_url}/jobs"
@@ -535,6 +539,7 @@ def execute_process(api: API, request: APIRequest,
             'type': 'process',
             'status': status.value
         }
+        response2 = to_json(response2, pretty_print_)
 
     if api.pubsub_client is not None:
         LOGGER.debug('Publishing message')
@@ -719,11 +724,11 @@ def get_oas_30(cfg: dict, locale: str
             'externalDocs': {}
         }
         for link in p.metadata.get('links', []):
-            if link['type'] == 'information':
+            if link.get('rel', '') == 'information':
                 translated_link = l10n.translate(link, locale)
                 tag['externalDocs']['description'] = translated_link[
-                    'type']
-                tag['externalDocs']['url'] = translated_link['url']
+                    'rel']
+                tag['externalDocs']['url'] = translated_link['href']
                 break
         if len(tag['externalDocs']) == 0:
             del tag['externalDocs']
@@ -759,7 +764,7 @@ def get_oas_30(cfg: dict, locale: str
                     'description': 'Indicates client preferences, including whether the client is capable of asynchronous processing.',  # noqa
                     'schema': {
                         'type': 'string',
-                        'enum': ['respond-async']
+                        'enum': []
                     }
                 }],
                 'responses': {
@@ -782,6 +787,12 @@ def get_oas_30(cfg: dict, locale: str
                 }
             }
         }
+
+        jco = p.metadata.get('jobControlOptions', ['sync-execute'])
+        if 'sync-execute' in jco:
+            paths[f'{process_name_path}/execution']['post']['parameters'][0]['schema']['enum'].append('respond-sync')  # noqa
+        if 'async-execute' in jco:
+            paths[f'{process_name_path}/execution']['post']['parameters'][0]['schema']['enum'].append('respond-async')  # noqa
 
         try:
             first_key = list(p.metadata['outputs'])[0]

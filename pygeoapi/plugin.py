@@ -102,6 +102,7 @@ PLUGINS = {
     },
     'pubsub': {
         'HTTP': 'pygeoapi.pubsub.http.HTTPPubSubClient',
+        'Kafka': 'pygeoapi.pubsub.kafka.KafkaPubSubClient',
         'MQTT': 'pygeoapi.pubsub.mqtt.MQTTPubSubClient'
     }
 }

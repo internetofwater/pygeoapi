@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2021 Tom Kralidis
+# Copyright (c) 2026 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -27,49 +27,25 @@
 #
 # =================================================================
 
-import os
-import pytest
+from collections import OrderedDict
 
-from pygeoapi.provider.filesystem import FileSystemProvider
+F_JSON = 'json'
+F_COVERAGEJSON = 'json'
+F_HTML = 'html'
+F_JSONLD = 'jsonld'
+F_GZIP = 'gzip'
+F_PNG = 'png'
+F_JPEG = 'jpeg'
+F_MVT = 'mvt'
+F_NETCDF = 'NetCDF'
 
-THISDIR = os.path.dirname(os.path.realpath(__file__))
-
-
-@pytest.fixture()
-def config():
-    return {
-        'name': 'FileSystem',
-        'type': 'stac',
-        'data': os.path.join(THISDIR, '../data'),
-        'file_types': ['.gpkg']
-    }
-
-
-def test_query(config):
-    p = FileSystemProvider(config)
-
-    baseurl = 'http://example.org/stac'
-    urlpath = ''
-    dirpath = ''
-
-    r = p.get_data_path(baseurl, urlpath, dirpath)
-
-    assert len(r['links']) == 14
-
-    r = p.get_data_path(baseurl, urlpath, '/poi_portugal')
-
-    assert r['geometry'] == {
-        'coordinates': [[[-31.263032, 32.635814],
-                         [-31.263032, 42.120163],
-                         [-6.221649, 42.120163],
-                         [-6.221649, 32.635814],
-                         [-31.263032, 32.635814]]],
-        'type': 'Polygon'
-    }
-    assert r['properties'] == {
-        'fclass': 'str:255',
-        'gid': 'int',
-        'name': 'str:255',
-        'osm_id': 'int'
-    }
-    assert r['assets']['default']['href'] == 'http://example.org/stac/poi_portugal.gpkg'  # noqa
+#: Formats allowed for ?f= requests (order matters for complex MIME types)
+FORMAT_TYPES = OrderedDict((
+    (F_HTML, 'text/html'),
+    (F_JSONLD, 'application/ld+json'),
+    (F_JSON, 'application/json'),
+    (F_PNG, 'image/png'),
+    (F_JPEG, 'image/jpeg'),
+    (F_MVT, 'application/vnd.mapbox-vector-tile'),
+    (F_NETCDF, 'application/x-netcdf'),
+))

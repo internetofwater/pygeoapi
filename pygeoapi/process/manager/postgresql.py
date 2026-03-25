@@ -1,8 +1,10 @@
 # =================================================================
 #
 # Authors: Francesco Martinelli <francesco.martinelli@ingv.it>
+#          Tom Kralidis <tomkralidis@gmail.com>
 #
 # Copyright (c) 2024 Francesco Martinelli
+# Copyright (c) 2026 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -46,17 +48,18 @@ from pathlib import Path
 from typing import Any, Tuple
 
 from sqlalchemy import insert, update, delete
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from pygeoapi.api import FORMAT_TYPES, F_JSON, F_JSONLD
 from pygeoapi.process.base import (
     JobNotFoundError,
     JobResultNotFoundError,
     ProcessorGenericError
 )
+from pygeoapi.formats import FORMAT_TYPES, F_JSON, F_JSONLD
 from pygeoapi.process.manager.base import BaseManager
-from pygeoapi.provider.sql import get_engine, get_table_model
+from pygeoapi.provider.sql import (
+    get_engine, get_table_model, store_db_parameters
+)
 from pygeoapi.util import JobStatus
 
 
@@ -66,13 +69,15 @@ LOGGER = logging.getLogger(__name__)
 class PostgreSQLManager(BaseManager):
     """PostgreSQL Manager"""
 
+    default_port = 5432
+
     def __init__(self, manager_def: dict):
         """
         Initialize object
 
         :param manager_def: manager definition
 
-        :returns: `pygeoapi.process.manager.postgresqs.PostgreSQLManager`
+        :returns: `pygeoapi.process.manager.postgresql.PostgreSQLManager`
         """
 
         super().__init__(manager_def)
@@ -81,30 +86,18 @@ class PostgreSQLManager(BaseManager):
         self.supports_subscribing = True
         self.connection = manager_def['connection']
 
-        try:
-            self.db_search_path = tuple(self.connection.get('search_path',
-                                        ['public']))
-        except Exception:
-            self.db_search_path = ('public',)
-
-        try:
-            LOGGER.debug('Connecting to database')
-            if isinstance(self.connection, str):
-                _url = make_url(self.connection)
-                self._engine = get_engine(
-                    'postgresql+psycopg2',
-                    _url.host,
-                    _url.port,
-                    _url.database,
-                    _url.username,
-                    _url.password)
-            else:
-                self._engine = get_engine('postgresql+psycopg2',
-                                          **self.connection)
-        except Exception as err:
-            msg = 'Test connecting to DB failed'
-            LOGGER.error(f'{msg}: {err}')
-            raise ProcessorGenericError(msg)
+        options = manager_def.get('options', {})
+        store_db_parameters(self, manager_def['connection'], options)
+        self._engine = get_engine(
+            'postgresql+psycopg2',
+            self.db_host,
+            self.db_port,
+            self.db_name,
+            self.db_user,
+            self._db_password,
+            self.db_conn,
+            **self.db_options
+        )
 
         try:
             LOGGER.debug('Getting table model')
