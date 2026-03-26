@@ -50,7 +50,7 @@ from pygeoapi.asyncapi import load_asyncapi_document
 from pygeoapi.openapi import load_openapi_document
 from pygeoapi.config import get_config
 from pygeoapi.util import get_mimetype, get_api_rules
-from pygeoapi.flask_app_cache.decorators import cache_flask_view
+from pygeoapi.flask_app_cache.helpers import cache_flask_view
 from pygeoapi.flask_app_cache.config import make_flask_cache
 
 CONFIG = get_config()
