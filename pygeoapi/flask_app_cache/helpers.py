@@ -17,12 +17,13 @@ def cache_flask_view(cache: Cache, server_config: dict):
             collection_cfg = resources.get(collection_id, {})
             return not collection_cfg.get("flask_cache")
 
-        # the full request path with parameters as well as the method is used for the cache key
-        # however we do not include headers since those can change between requests
+        # the full request path with parameters as well as the
+        # method is used for the cache key however we do not
+        # include headers since those can change between requests
         # without affecting data
         def make_cache_key():
             return f"view/{request.method}/{request.full_path}"
-        
+
         def get_ttl_for_collection_id():
             view_args = request.view_args or {}
             collection_id = view_args.get("collection_id")
@@ -31,7 +32,8 @@ def cache_flask_view(cache: Cache, server_config: dict):
             cache_config = collection_cfg.get("flask_cache", {})
             if "ttl_seconds" not in cache_config:
                 raise ValueError(
-                    f"'ttl_seconds' not configured in 'flask_cache' config block for {collection_id=}"
+                    f"'ttl_seconds' not configured in 'flask_cache'  \
+                    config block for {collection_id=}"
                 )
             return cache_config["ttl_seconds"]
 
@@ -44,14 +46,15 @@ def cache_flask_view(cache: Cache, server_config: dict):
             if skip_cache():
                 response = f(*args, **kwargs)
                 return response
-            
+
             # if the user has requested no caching, then fetch fresh
             # and refresh the data stored in the cache
             if request.headers.get("Cache-Control") == "no-cache":
                 g.cache_hit = False
                 response = f(*args, **kwargs)
                 cache.set(
-                    make_cache_key(), response, timeout=get_ttl_for_collection_id()
+                    make_cache_key(), response,
+                    timeout=get_ttl_for_collection_id()
                 )
                 response.headers["Cache-Hit"] = "false"
                 return response
@@ -68,7 +71,8 @@ def cache_flask_view(cache: Cache, server_config: dict):
                 LOGGER.debug(f"Cache miss for {cache_key=}")
                 g.cache_hit = False
                 response = f(*args, **kwargs)
-                cache.set(cache_key, response, timeout=get_ttl_for_collection_id())
+                cache.set(cache_key, response,
+                          timeout=get_ttl_for_collection_id())
                 response.headers["Cache-Hit"] = "false"
                 return response
 

@@ -1,10 +1,11 @@
 import os
 
-from flask_caching import Cache 
+from flask_caching import Cache
 from flask import Flask
 
 import logging
 LOGGER = logging.getLogger(__name__)
+
 
 def make_flask_cache(APP: Flask) -> Cache:
     _REDIS_HOST = os.environ.get("REDIS_HOST")
@@ -19,5 +20,3 @@ def make_flask_cache(APP: Flask) -> Cache:
         APP.config["CACHE_TYPE"] = "NullCache"
 
     return Cache(APP)
-
-
