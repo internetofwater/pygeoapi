@@ -7,11 +7,25 @@ from logging import getLogger
 LOGGER = getLogger(__name__)
 
 
-def cache_flask_view(cache: Cache, server_config: dict):
+def cache_flask_view(cache: Cache, server_config: dict,
+                     skip_caching_args: list[str] | None = None):
+    """
+    Decorator to cache flask views
+
+    :param cache: `flask_caching.Cache` instance
+    :param server_config: `dict` of server configuration
+    :param skip_caching_args: `list` of arguments that when present in
+            the request will skip the cache
+    """
     def decorator(f):
         # if the resource has not been configured to be cached, then skip it
         def skip_cache():
             view_args = request.view_args or {}
+            if skip_caching_args:
+                query_args = request.values
+                for arg in skip_caching_args:
+                    if arg in query_args:
+                        return True
             collection_id = view_args.get("collection_id")
             resources = server_config.get("resources", {})
             collection_cfg = resources.get(collection_id, {})

@@ -283,7 +283,7 @@ def collection_queryables(collection_id: str | None = None):
 @BLUEPRINT.route('/collections/<path:collection_id>/items/<path:item_id>',
                  methods=['GET', 'PUT', 'DELETE', 'OPTIONS'],
                  provide_automatic_options=False)
-@cache_flask_view(FLASK_CACHE, CONFIG)
+@cache_flask_view(FLASK_CACHE, CONFIG, skip_caching_args=["bbox"])
 def collection_items(collection_id: str, item_id: str | None = None):
     """
     OGC API collections items endpoint
