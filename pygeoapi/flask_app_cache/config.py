@@ -18,5 +18,7 @@ def make_flask_cache(APP: Flask) -> Cache:
         LOGGER.info("Initializing redis flask cache")
     else:
         APP.config["CACHE_TYPE"] = "NullCache"
+        LOGGER.warning("""No redis env vars found.
+                       Initializing dummy flask cache without persistence""")
 
     return Cache(APP)
