@@ -18,3 +18,4 @@ shapely
 SQLAlchemy
 tinydb
 Flask-Caching
+redis

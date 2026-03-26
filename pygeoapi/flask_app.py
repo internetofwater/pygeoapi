@@ -50,7 +50,8 @@ from pygeoapi.asyncapi import load_asyncapi_document
 from pygeoapi.openapi import load_openapi_document
 from pygeoapi.config import get_config
 from pygeoapi.util import get_mimetype, get_api_rules
-
+from pygeoapi.flask_app_cache.decorators import cache_flask_view
+from pygeoapi.flask_app_cache.config import make_flask_cache
 
 CONFIG = get_config()
 OPENAPI = load_openapi_document()
@@ -68,6 +69,8 @@ if 'templates' in CONFIG['server']:
 
 APP = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 APP.url_map.strict_slashes = API_RULES.strict_slashes
+
+FLASK_CACHE = make_flask_cache(APP)
 
 BLUEPRINT = Blueprint(
     'pygeoapi',
@@ -280,7 +283,7 @@ def collection_queryables(collection_id: str | None = None):
 @BLUEPRINT.route('/collections/<path:collection_id>/items/<path:item_id>',
                  methods=['GET', 'PUT', 'DELETE', 'OPTIONS'],
                  provide_automatic_options=False)
-@FLASK_APP_CACHE.cached(timeout=60*5)
+@cache_flask_view(FLASK_CACHE, CONFIG)
 def collection_items(collection_id: str, item_id: str | None = None):
     """
     OGC API collections items endpoint
