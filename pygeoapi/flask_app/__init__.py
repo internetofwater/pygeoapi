@@ -49,8 +49,8 @@ import pygeoapi.api.tiles as tiles_api
 from pygeoapi.asyncapi import load_asyncapi_document
 from pygeoapi.openapi import load_openapi_document
 from pygeoapi.config import get_config
-from pygeoapi.util import get_mimetype, get_api_rules
 from pygeoapi.flask_app.cache import cache_flask_view, make_flask_cache
+from pygeoapi.util import get_mimetype, get_api_rules
 
 CONFIG = get_config()
 OPENAPI = load_openapi_document()
@@ -235,6 +235,7 @@ def get_tilematrix_sets():
 
 @BLUEPRINT.route('/collections')
 @BLUEPRINT.route('/collections/<path:collection_id>')
+@cache_flask_view(FLASK_CACHE, CONFIG, always_cache=True)
 def collections(collection_id: str | None = None):
     """
     OGC API collections endpoint
