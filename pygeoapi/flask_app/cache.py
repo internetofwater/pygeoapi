@@ -1,6 +1,7 @@
 # =================================================================
 #
 # Authors: Colton Loftus <cloftus@lincolninst.edu>
+#          Ben Webb <bwebb@lincolninst.edu>
 #
 # Copyright (c) 2026 Lincoln Institute Of Land Policy
 #
@@ -31,12 +32,17 @@
 from flask_caching import Cache
 from flask import Flask, request, g
 from functools import wraps
+import logging
 import os
 
-import logging
+from pygeoapi.config import get_config
+from pygeoapi.util import get_from_headers
 
 
 LOGGER = logging.getLogger(__name__)
+
+CONFIG = get_config()
+DEFAULT_TTL = os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
 
 
 def make_flask_cache(APP: Flask) -> Cache | None:
@@ -47,121 +53,130 @@ def make_flask_cache(APP: Flask) -> Cache | None:
 
     :returns: A `flask_caching.Cache` instance
     """
-    _FLASK_CACHE = os.environ.get('FLASK_CACHE')
-    _REDIS_HOST = os.environ.get('REDIS_HOST')
-    _REDIS_PORT = os.environ.get('REDIS_PORT')
+    _FLASK_CACHE = os.environ.get('PYGEOAPI_FLASK_CACHE')
+    _REDIS_HOST = os.environ.get('PYGEOAPI_REDIS_HOST')
+    _REDIS_PORT = os.environ.get('PYGEOAPI_REDIS_PORT')
 
     if _FLASK_CACHE:
         LOGGER.info(f'Initializing {_FLASK_CACHE} cache')
-        return Cache(APP, config={'CACHE_TYPE': 'SimpleCache'})
+        return FlaskCache(APP, config={'CACHE_TYPE': 'SimpleCache'})
 
     elif _REDIS_HOST and _REDIS_PORT:
         LOGGER.info(f'Initializing Redis cache at {_REDIS_HOST}:{_REDIS_PORT}')
         APP.config['CACHE_REDIS_HOST'] = _REDIS_HOST
         APP.config['CACHE_REDIS_PORT'] = _REDIS_PORT
         APP.config['CACHE_TYPE'] = 'RedisCache'
-        return Cache(APP)
-    
+        return FlaskCache(APP)
+
     else:
-        LOGGER.info('Initializing dummy flask cache without persistence')
-        return Cache(APP, config={'CACHE_TYPE': 'NullCache'})
+        LOGGER.warning('Initializing dummy flask cache without persistence')
+        return FlaskCache(APP, config={'CACHE_TYPE': 'NullCache'})
 
 
-def cache_flask_view(cache: Cache, server_config: dict,
-                     skip_caching_args: list[str] | None = None,
-                     always_cache: bool = False):
-    """
-    Decorator to cache flask views
+class FlaskCache(Cache):
+    def cached_view(
+        self,
+        skip_caching_args: list[str] | None = None,
+        always_cache: bool = False
+    ) -> callable:
+        """
+        Decorator to cache flask views
 
-    :param cache: `flask_caching.Cache` instance
-    :param server_config: `dict` of server configuration
-    :param skip_caching_args: `list` of arguments that when present in
-            the request will skip the cache
-    :param always_cache: if True, the cache will be used
+        :param cache: `flask_caching.Cache` instance
+        :param skip_caching_args: `list` of arguments that when present in
+                the request will skip the cache
+        :param always_cache: if True, the cached view will be not check
+                configuration which is useful for `/collections` caching
 
-    :returns: decorated flask view function
-    """
-    def decorator(f):
-        # if the resource has not been configured to be cached, then skip it
-        def skip_cache():
-            if always_cache:
-                return False
+        :returns: decorated flask view function
+        """
 
-            if skip_caching_args:
-                query_args = request.values
-                for arg in skip_caching_args:
-                    if arg in query_args:
-                        return True
+        def decorator(f):
+            # if the view has not been configured to be cached, skip it
+            def skip_cache():
+                if always_cache:
+                    # attempt to cache the view
+                    # will still defer to Cache-Control headers
+                    return False
 
-            view_args = request.view_args or {}
-            collection_id = view_args.get('collection_id')
-            resources = server_config.get('resources', {})
-            collection_cfg = resources.get(collection_id, {})
-            return not collection_cfg.get('flask_cache')
+                if skip_caching_args:
+                    query_args = request.values
+                    for arg in skip_caching_args:
+                        if arg in query_args:
+                            return True
 
-        # the full request path with parameters as well as the
-        # method is used for the cache key however we do not
-        # include headers since those can change between requests
-        # without affecting data
-        def make_cache_key():
-            return f'view/{request.method}/{request.full_path}'
+                view_args = request.view_args or {}
+                collection_id = view_args.get('collection_id')
+                resources = CONFIG.get('resources', {})
+                collection_cfg = resources.get(collection_id, {})
+                return not collection_cfg.get('flask_cache')
 
-        def get_ttl():
-            view_args = request.view_args or {}
-            collection_id = view_args.get('collection_id')
-            resources = server_config.get('resources', {})
-            collection_cfg = resources.get(collection_id, {})
-            cache_config = collection_cfg.get('flask_cache', {})
+            # the full request path with parameters as well as the
+            # method is used for the cache key however we do not
+            # include headers since those can change between requests
+            # without affecting data
+            def make_cache_key():
+                return f'view/{request.method}/{request.full_path}'
 
-            if 'ttl_seconds' in cache_config:
-                return cache_config['ttl_seconds']
+            def get_ttl():
+                view_args = request.view_args or {}
+                collection_id = view_args.get('collection_id')
+                resources = CONFIG.get('resources', {})
+                collection_cfg = resources.get(collection_id, {})
+                cache_config = collection_cfg.get('flask_cache', {})
 
-            LOGGER.warning(
-                f'ttl_seconds not configured for {collection_id=}, using 3600s'
-            )
-            return 3600
+                if 'ttl_seconds' in cache_config:
+                    return cache_config['ttl_seconds']
 
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            # if there is no specified collection caching info,
-            # it should be fetched fresh and not cached; this is so
-            # collections with huge amounts of ids don't get cached
-            # implicitly unless the user explicitly configures it
-            if skip_cache():
-                response = f(*args, **kwargs)
-                return response
-
-            cache_ttl = get_ttl()
-
-            # if the user has requested no caching, then fetch fresh
-            # and refresh the data stored in the cache
-            if request.headers.get('Cache-Control') == 'no-cache':
-                g.cache_hit = False
-                response = f(*args, **kwargs)
-                cache.set(
-                    make_cache_key(), response, timeout=cache_ttl
+                LOGGER.warning(
+                    f'ttl_seconds not configured for {collection_id=}, '
+                    f'defaulting to {DEFAULT_TTL} seconds'
                 )
-                response.headers['Cache-Hit'] = False
-                return response
+                return DEFAULT_TTL
 
-            # otherwise check the cache
-            cache_key = make_cache_key()
-            cached_response = cache.get(cache_key)
+            @wraps(f)
+            def wrapped(*args, **kwargs):
+                # if there is no specified collection caching info,
+                # it should be fetched fresh and not cached; this is so
+                # collections with huge amounts of ids don't get cached
+                # implicitly unless the user explicitly configures it
+                if skip_cache():
+                    response = f(*args, **kwargs)
+                    return response
 
-            g.cache_hit = cached_response is not None
-            if g.cache_hit:
-                cached_response.headers['Cache-Hit'] = g.cache_hit
-                cached_response.headers['Cache-Control'] = \
-                    f'public, s-max-age={cache_ttl}'
-                return cached_response
+                cache_ttl = get_ttl()
+                # if the user has requested no caching, then fetch fresh
+                # and refresh the data stored in the cache
+                headers = request.headers
+                cache_control = get_from_headers(headers, 'cache-control')
+                if cache_control == 'no-cache':
+                    g.cache_hit = False
+                    response = f(*args, **kwargs)
+                    self.set(
+                        make_cache_key(), response, timeout=cache_ttl
+                    )
+                    response.headers['Cache-Hit'] = False
+                    response.headers['Cache-Control'] = 'no-cache'
+                    return response
 
-            else:
-                LOGGER.debug(f'Cache miss for {cache_key=}')
-                response = f(*args, **kwargs)
-                response.headers['Cache-Hit'] = g.cache_hit
-                cache.set(cache_key, response, timeout=cache_ttl)
-                return response
+                # otherwise check the cache
+                cache_key = make_cache_key()
+                cached_response = self.get(cache_key)
 
-        return wrapped
+                g.cache_hit = cached_response is not None
+                if g.cache_hit:
+                    cached_response.headers['Cache-Hit'] = g.cache_hit
+                    cached_response.headers['Cache-Control'] = \
+                        f'public, s-max-age={cache_ttl}'
+                    return cached_response
 
-    return decorator
+                else:
+                    LOGGER.debug(f'Cache miss for {cache_key=}')
+                    response = f(*args, **kwargs)
+                    response.headers['Cache-Hit'] = g.cache_hit
+                    self.set(cache_key, response, timeout=cache_ttl)
+                    return response
+
+            return wrapped
+
+        return decorator
