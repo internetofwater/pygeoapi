@@ -47,21 +47,24 @@ def make_flask_cache(APP: Flask) -> Cache | None:
 
     :returns: A `flask_caching.Cache` instance
     """
+    _FLASK_CACHE = os.environ.get('FLASK_CACHE')
     _REDIS_HOST = os.environ.get('REDIS_HOST')
     _REDIS_PORT = os.environ.get('REDIS_PORT')
 
-    if _REDIS_HOST and _REDIS_PORT:
+    if _FLASK_CACHE:
+        LOGGER.info(f'Initializing {_FLASK_CACHE} cache')
+        return Cache(APP, config={'CACHE_TYPE': 'SimpleCache'})
 
+    elif _REDIS_HOST and _REDIS_PORT:
         LOGGER.info(f'Initializing Redis cache at {_REDIS_HOST}:{_REDIS_PORT}')
         APP.config['CACHE_REDIS_HOST'] = _REDIS_HOST
         APP.config['CACHE_REDIS_PORT'] = _REDIS_PORT
         APP.config['CACHE_TYPE'] = 'RedisCache'
-
         return Cache(APP)
-
+    
     else:
-        LOGGER.warning('No redis env vars found. Initializing SimpleCache')
-        return Cache(APP, config={'CACHE_TYPE': 'SimpleCache'})
+        LOGGER.info('Initializing dummy flask cache without persistence')
+        return Cache(APP, config={'CACHE_TYPE': 'NullCache'})
 
 
 def cache_flask_view(cache: Cache, server_config: dict,
