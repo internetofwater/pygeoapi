@@ -42,9 +42,9 @@ LOGGER = logging.getLogger(__name__)
 def make_flask_cache(APP: Flask) -> Cache | None:
     """
     Factory function to create a flask cache instance.
-    
+
     :param APP: Flask app instance to initialize the cache for
-    
+
     :returns: A `flask_caching.Cache` instance
     """
     _REDIS_HOST = os.environ.get('REDIS_HOST')
@@ -112,9 +112,9 @@ def cache_flask_view(cache: Cache, server_config: dict,
 
             if 'ttl_seconds' in cache_config:
                 return cache_config['ttl_seconds']
-            
+
             LOGGER.warning(
-                f'ttl_seconds not configured for {collection_id=}, using default'
+                f'ttl_seconds not configured for {collection_id=}, using 3600s'
             )
             return 3600
 
@@ -148,7 +148,8 @@ def cache_flask_view(cache: Cache, server_config: dict,
             g.cache_hit = cached_response is not None
             if g.cache_hit:
                 cached_response.headers['Cache-Hit'] = g.cache_hit
-                cached_response.headers['Cache-Control'] = f'public, s-max-age={cache_ttl}'
+                cached_response.headers['Cache-Control'] = \
+                    f'public, s-max-age={cache_ttl}'
                 return cached_response
 
             else:
