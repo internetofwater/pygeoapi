@@ -85,8 +85,10 @@ class FlaskCache(Cache):
         :param cache: `flask_caching.Cache` instance
         :param skip_caching_args: `list` of arguments that when present in
                 the request will skip the cache
-        :param always_cache: if True, the cached view will be not check
-                configuration which is useful for `/collections` caching
+        :param always_cache: if True, the view will try to cache without checking 
+        the pygeoapi configuration for the particular resource;
+        This is useful for caching endpoints like `/collections` which return 
+        data which rarely change
 
         :returns: decorated flask view function
         """
