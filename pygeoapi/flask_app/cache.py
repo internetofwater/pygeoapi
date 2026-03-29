@@ -45,7 +45,7 @@ CONFIG = get_config()
 DEFAULT_TTL = os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
 
 
-def make_flask_cache(APP: Flask) -> Cache | None:
+def make_flask_cache(APP: Flask) -> Cache:
     """
     Factory function to create a flask cache instance.
 
