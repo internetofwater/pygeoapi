@@ -157,7 +157,7 @@ class FlaskCache(Cache):
         return decorator
 
 
-def make_flask_cache(APP: Flask) -> FlaskCache | None:
+def make_flask_cache(APP: Flask) -> FlaskCache:
     """
     Factory function to create a flask cache instance.
 
