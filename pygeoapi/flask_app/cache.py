@@ -45,10 +45,11 @@ LOGGER = logging.getLogger(__name__)
 
 CONFIG = get_config()
 
+
 class FlaskCacheConfig(TypedDict):
     # The time to live of a key / value pair in the cache in seconds
     ttl_seconds: NotRequired[int]
-    # Explicitly allow caching on arguments that might otherwise be 
+    # Explicitly allow caching on arguments that might otherwise be
     # excluded from caching by the cache configuration
     permit_args: NotRequired[list[str]]
 
@@ -106,10 +107,8 @@ class FlaskCache(Cache):
                 cache_config = get_cache_config_for_request()
                 if not cache_config:
                     return True
-                
                 if not skip_caching_args:
-                    return False 
-                
+                    return False
                 # allow for a collection to cache on arguments
                 # that have been configured to bypass the cache
                 # enabling runtime control over cahing without
@@ -135,8 +134,9 @@ class FlaskCache(Cache):
 
             def get_ttl():
                 cache_config = get_cache_config_for_request()
-                DEFAULT_TTL = int(os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600))
-
+                DEFAULT_TTL = int(
+                    os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
+                )
                 if not cache_config:
                     return DEFAULT_TTL
 
@@ -196,8 +196,10 @@ class FlaskCache(Cache):
         return decorator
 
 
-def make_flask_cache(APP: Flask, 
-                     cache_type_override: Literal["SIMPLE", "REDIS", "NULL"] | None = None) -> FlaskCache:
+def make_flask_cache(APP: Flask,
+                     cache_type_override:
+                     Literal["SIMPLE", "REDIS", "NULL"] |
+                     None = None) -> FlaskCache:
     """
     Factory function to create a flask cache instance.
 
