@@ -43,9 +43,6 @@ from pygeoapi.util import get_from_headers
 
 LOGGER = logging.getLogger(__name__)
 
-CONFIG = get_config()
-
-
 class FlaskCacheConfig(TypedDict):
     """
     The configuration for the flask cache
@@ -65,6 +62,7 @@ class FlaskCache(Cache):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        CONFIG = get_config()
         resources: dict = CONFIG.get('resources', {})
         # we set the cache config once at initialization
         # which allows for both easier mocking / testing
