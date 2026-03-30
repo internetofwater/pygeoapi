@@ -47,6 +47,10 @@ CONFIG = get_config()
 
 
 class FlaskCacheConfig(TypedDict):
+    """
+    The configuration for the flask cache
+    within the pygeoapi yml configuration file
+    """
     # The time to live of a key / value pair in the cache in seconds
     ttl_seconds: NotRequired[int]
     # Explicitly allow caching on arguments that might otherwise be
@@ -61,7 +65,10 @@ class FlaskCache(Cache):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        resources = CONFIG.get('resources', {})
+        resources: dict = CONFIG.get('resources', {})
+        # we set the cache config once at initialization
+        # which allows for both easier mocking / testing
+        # and less config iteration at request-time
         self.collection_id_to_cache_config: dict[str, FlaskCacheConfig] = {
             collection_id: collection_cfg.get('flask_cache')
             for collection_id, collection_cfg in resources.items()
@@ -105,6 +112,7 @@ class FlaskCache(Cache):
                     return False
 
                 cache_config = get_cache_config_for_request()
+                # if there is no cache config, then we should not cache
                 if not cache_config:
                     return True
                 if not skip_caching_args:
@@ -118,6 +126,9 @@ class FlaskCache(Cache):
                     'permit_args', []
                 )
                 for arg_to_skip in skip_caching_args:
+                    # if an arg is in the list of args to skip
+                    # BUT it is in the list of args to permit regardless
+                    # then it does not affect the skip logic
                     if arg_to_skip in permit_args_regardless_of_skip:
                         continue
                     if arg_to_skip in query_args:
