@@ -2,6 +2,7 @@ Babel
 click
 filelock
 Flask
+Flask-Caching
 jinja2
 jsonschema
 pydantic>2.0
@@ -13,9 +14,8 @@ python-dateutil
 pytz
 PyYAML
 rasterio
+redis
 requests
 shapely
 SQLAlchemy
 tinydb
-Flask-Caching
-redis
