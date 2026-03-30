@@ -29,6 +29,8 @@
 # =================================================================
 
 
+from typing import Callable
+
 from flask_caching import Cache
 from flask import Flask, request, g
 from functools import wraps
@@ -51,7 +53,7 @@ class FlaskCache(Cache):
         self,
         skip_caching_args: list[str] | None = None,
         always_cache: bool = False
-    ) -> callable:
+    ) -> Callable:
         """
         Decorator to cache flask views
 
@@ -134,7 +136,7 @@ class FlaskCache(Cache):
                 cache_ttl = get_ttl()
                 # if the user has requested no caching, then fetch fresh
                 # and refresh the data stored in the cache
-                headers = request.headers
+                headers = dict(request.headers)
                 cache_control = get_from_headers(headers, 'cache-control')
                 if cache_control == 'no-cache':
                     g.cache_hit = False
@@ -177,11 +179,12 @@ def make_flask_cache(APP: Flask) -> FlaskCache:
 
     :returns: A `FlaskCache` instance
     """
-    _FLASK_CACHE = os.environ.get('PYGEOAPI_FLASK_CACHE_TYPE')
-    _REDIS_HOST = os.environ.get('PYGEOAPI_REDIS_HOST')
-    _REDIS_PORT = os.environ.get('PYGEOAPI_REDIS_PORT')
-    match _FLASK_CACHE:
+    _FLASK_CACHE_TYPE = os.environ.get('PYGEOAPI_FLASK_CACHE_TYPE')
+
+    match _FLASK_CACHE_TYPE:
         case 'REDIS':
+            _REDIS_HOST = os.environ.get('PYGEOAPI_REDIS_HOST')
+            _REDIS_PORT = os.environ.get('PYGEOAPI_REDIS_PORT')
             # Redis cache, which maintains global cache state
             # and is good for production deployments, but requires Redis
             if not (_REDIS_HOST and _REDIS_PORT):
@@ -204,11 +207,11 @@ def make_flask_cache(APP: Flask) -> FlaskCache:
             LOGGER.info('Initializing SIMPLE cache')
             return FlaskCache(APP, config={'CACHE_TYPE': 'SimpleCache'})
 
-        case None | 'Null':
+        case None | 'NULL':
             # Null cache, which does not actually cache anything, but allows
             # the code to run without modification when caching is not desired
             LOGGER.warning('Initializing dummy cache without persistence')
             return FlaskCache(APP, config={'CACHE_TYPE': 'NullCache'})
 
         case _:
-            raise ValueError(f'Undefined Flask Cache type {_FLASK_CACHE}')
+            raise ValueError(f'Undefined Flask Cache type {_FLASK_CACHE_TYPE}')
