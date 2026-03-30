@@ -29,7 +29,7 @@
 # =================================================================
 
 
-from typing import Callable
+from typing import Callable, Literal, NotRequired, TypedDict
 
 from flask_caching import Cache
 from flask import Flask, request, g
@@ -44,15 +44,33 @@ from pygeoapi.util import get_from_headers
 LOGGER = logging.getLogger(__name__)
 
 CONFIG = get_config()
-DEFAULT_TTL = int(os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600))
+
+class FlaskCacheConfig(TypedDict):
+    # The time to live of a key / value pair in the cache in seconds
+    ttl_seconds: NotRequired[int]
+    # Explicitly allow caching on arguments that might otherwise be 
+    # excluded from caching by the cache configuration
+    permit_args: NotRequired[list[str]]
 
 
 class FlaskCache(Cache):
+
+    collection_id_to_cache_config: dict[str, FlaskCacheConfig]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        resources = CONFIG.get('resources', {})
+        self.collection_id_to_cache_config: dict[str, FlaskCacheConfig] = {
+            collection_id: collection_cfg.get('flask_cache')
+            for collection_id, collection_cfg in resources.items()
+        }
+
     """Wrapper around to add a decorator for caching OGC API Flask views"""
     def cached_view(
         self,
         skip_caching_args: list[str] | None = None,
-        always_cache: bool = False
+        always_cache: bool = False,
     ) -> Callable:
         """
         Decorator to cache flask views
@@ -68,14 +86,14 @@ class FlaskCache(Cache):
         :returns: decorated flask view function
         """
 
-        def get_cache_config():
+        def get_cache_config_for_request() -> FlaskCacheConfig | None:
             # cache configuration is stored at collection level
             # to allow for caching strategies specific to a collection
             view_args = request.view_args or {}
             collection_id = view_args.get('collection_id')
-            resources = CONFIG.get('resources', {})
-            collection_cfg = resources.get(collection_id, {})
-            return collection_cfg.get('flask_cache', {})
+            if not collection_id:
+                return None
+            return self.collection_id_to_cache_config.get(collection_id)
 
         def decorator(f):
             # if the view has not been configured to be cached, skip it
@@ -85,25 +103,28 @@ class FlaskCache(Cache):
                     # will still defer to Cache-Control headers
                     return False
 
-                cache_config = get_cache_config()
+                cache_config = get_cache_config_for_request()
+                if not cache_config:
+                    return True
+                
+                if not skip_caching_args:
+                    return False 
+                
+                # allow for a collection to cache on arguments
+                # that have been configured to bypass the cache
+                # enabling runtime control over cahing without
+                # needing to change pygeoapi source code
+                query_args = request.values
+                permit_args_regardless_of_skip = cache_config.get(
+                    'permit_args', []
+                )
+                for arg_to_skip in skip_caching_args:
+                    if arg_to_skip in permit_args_regardless_of_skip:
+                        continue
+                    if arg_to_skip in query_args:
+                        return True
 
-                if skip_caching_args:
-                    # allow for a collection to cache on arguments
-                    # that have been configured to bypass the cache
-                    # enabling runtime control over cahing without
-                    # needing to change pygeoapi source code
-                    allowed_args = cache_config.get('allowed_cache_keys', [])
-                    bypass_cache_args = [
-                        arg for arg in skip_caching_args
-                        if arg not in allowed_args
-                    ]
-
-                    query_args = request.values
-                    for arg in bypass_cache_args:
-                        if arg in query_args:
-                            return True
-
-                return not cache_config
+                return False
 
             # the full request path with parameters as well as the
             # method is used for the cache key however we do not
@@ -113,7 +134,11 @@ class FlaskCache(Cache):
                 return f'view/{request.method}/{request.full_path}'
 
             def get_ttl():
-                cache_config = get_cache_config()
+                cache_config = get_cache_config_for_request()
+                DEFAULT_TTL = int(os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600))
+
+                if not cache_config:
+                    return DEFAULT_TTL
 
                 if 'ttl_seconds' not in cache_config:
                     LOGGER.warning(
@@ -171,15 +196,22 @@ class FlaskCache(Cache):
         return decorator
 
 
-def make_flask_cache(APP: Flask) -> FlaskCache:
+def make_flask_cache(APP: Flask, 
+                     cache_type_override: Literal["SIMPLE", "REDIS", "NULL"] | None = None) -> FlaskCache:
     """
     Factory function to create a flask cache instance.
 
     :param APP: Flask app instance to initialize the cache for
+    :param cache_type_override: Optional override for the cache type
+        to use a cache type other than the value of PYGEOAPI_FLASK_CACHE_TYPE
+        environment variable; useful for testing purposes
 
     :returns: A `FlaskCache` instance
     """
-    _FLASK_CACHE_TYPE = os.environ.get('PYGEOAPI_FLASK_CACHE_TYPE')
+    if cache_type_override:
+        _FLASK_CACHE_TYPE = cache_type_override
+    else:
+        _FLASK_CACHE_TYPE = os.environ.get('PYGEOAPI_FLASK_CACHE_TYPE')
 
     match _FLASK_CACHE_TYPE:
         case 'REDIS':
