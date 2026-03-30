@@ -51,8 +51,8 @@ class FlaskCacheConfig(TypedDict):
     """
     # The time to live of a key / value pair in the cache in seconds
     ttl_seconds: NotRequired[int]
-    # Explicitly allow caching on arguments that might otherwise be
-    # excluded from caching by the cache configuration
+    # Explicitly allow caching on query arguments that
+    # bypass caching by default (i.e. bbox)
     permit_args: NotRequired[list[str]]
 
 
