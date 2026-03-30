@@ -42,12 +42,12 @@ from pygeoapi.util import get_from_headers
 LOGGER = logging.getLogger(__name__)
 
 CONFIG = get_config()
-DEFAULT_TTL = os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
+DEFAULT_TTL = int(os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600))
 
 
 class FlaskCache(Cache):
     """Wrapper around to add a decorator for caching OGC API Flask views"""
-    def cache_view(
+    def cached_view(
         self,
         skip_caching_args: list[str] | None = None,
         always_cache: bool = False
