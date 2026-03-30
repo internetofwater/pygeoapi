@@ -406,6 +406,7 @@ def get_collection_tiles_data(collection_id: str | None = None,
 
 @BLUEPRINT.route('/collections/<collection_id>/map')
 @BLUEPRINT.route('/collections/<collection_id>/styles/<style_id>/map')
+@FLASK_CACHE.cached_view(skip_caching_args=['bbox'])
 def collection_map(collection_id: str, style_id: str | None = None):
     """
     OGC API - Maps map render endpoint
@@ -504,6 +505,7 @@ def get_job_result(job_id: str | None = None):
 @BLUEPRINT.route('/collections/<path:collection_id>/instances/<instance_id>/locations')  # noqa
 @BLUEPRINT.route('/collections/<path:collection_id>/instances/<instance_id>')
 @BLUEPRINT.route('/collections/<path:collection_id>/instances')
+@FLASK_CACHE.cached_view(skip_caching_args=['bbox', 'coords'])
 def get_collection_edr_query(collection_id: str,
                              instance_id: str | None = None,
                              location_id: str | None = None):
