@@ -42,7 +42,7 @@ from pygeoapi.util import get_from_headers
 LOGGER = logging.getLogger(__name__)
 
 CONFIG = get_config()
-DEFAULT_TTL = os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
+DEFAULT_TTL = int(os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600))
 
 
 class FlaskCache(Cache):
