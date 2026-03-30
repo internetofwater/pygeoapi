@@ -49,8 +49,8 @@ import pygeoapi.api.tiles as tiles_api
 from pygeoapi.asyncapi import load_asyncapi_document
 from pygeoapi.openapi import load_openapi_document
 from pygeoapi.config import get_config
-from pygeoapi.util import get_mimetype, get_api_rules
-
+from pygeoapi.flask_app.cache import make_flask_cache
+from pygeoapi.util import get_mimetype, get_api_rules, THISDIR
 
 CONFIG = get_config()
 OPENAPI = load_openapi_document()
@@ -62,12 +62,14 @@ if CONFIG['server'].get('admin'):
     import pygeoapi.api.admin as admin_api
     from pygeoapi.api.admin import Admin
 
-STATIC_FOLDER = 'static'
+STATIC_FOLDER = THISDIR / 'static'
 if 'templates' in CONFIG['server']:
-    STATIC_FOLDER = CONFIG['server']['templates'].get('static', 'static')
+    STATIC_FOLDER = CONFIG['server']['templates'].get('static', STATIC_FOLDER)
 
 APP = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='/static')
 APP.url_map.strict_slashes = API_RULES.strict_slashes
+
+FLASK_CACHE = make_flask_cache(APP)
 
 BLUEPRINT = Blueprint(
     'pygeoapi',
@@ -233,6 +235,7 @@ def get_tilematrix_sets():
 
 @BLUEPRINT.route('/collections')
 @BLUEPRINT.route('/collections/<path:collection_id>')
+@FLASK_CACHE.cached_view(always_cache=True)
 def collections(collection_id: str | None = None):
     """
     OGC API collections endpoint
@@ -280,6 +283,7 @@ def collection_queryables(collection_id: str | None = None):
 @BLUEPRINT.route('/collections/<path:collection_id>/items/<path:item_id>',
                  methods=['GET', 'PUT', 'DELETE', 'OPTIONS'],
                  provide_automatic_options=False)
+@FLASK_CACHE.cached_view(skip_caching_args=['bbox'])
 def collection_items(collection_id: str, item_id: str | None = None):
     """
     OGC API collections items endpoint
@@ -402,6 +406,7 @@ def get_collection_tiles_data(collection_id: str | None = None,
 
 @BLUEPRINT.route('/collections/<path:collection_id>/map')
 @BLUEPRINT.route('/collections/<path:collection_id>/styles/<style_id>/map')
+@FLASK_CACHE.cached_view(skip_caching_args=['bbox'])
 def collection_map(collection_id: str, style_id: str | None = None):
     """
     OGC API - Maps map render endpoint
@@ -500,6 +505,7 @@ def get_job_result(job_id: str | None = None):
 @BLUEPRINT.route('/collections/<path:collection_id>/instances/<instance_id>/locations')  # noqa
 @BLUEPRINT.route('/collections/<path:collection_id>/instances/<instance_id>')
 @BLUEPRINT.route('/collections/<path:collection_id>/instances')
+@FLASK_CACHE.cached_view(skip_caching_args=['bbox', 'coords'])
 def get_collection_edr_query(collection_id: str,
                              instance_id: str | None = None,
                              location_id: str | None = None):
