@@ -6,6 +6,7 @@ from time import sleep
 from tests.util import mock_flask
 from pygeoapi.flask_app.cache import make_flask_cache
 
+
 def test_api_no_cache(api_):
 
     os.environ['PYGEOAPI_FLASK_CACHE_TYPE'] = 'NULL'
@@ -56,6 +57,7 @@ def test_api_invalid_cache(api_):
         with mock_flask('pygeoapi-test-config.yml') as flask_client:
             flask_client.get('/collections/obs')
 
+
 def test_cache_object_directly():
     flask_app = Flask(__name__)
     flask_cache = make_flask_cache(flask_app, cache_type_override="SIMPLE")
@@ -79,8 +81,9 @@ def test_cache_object_directly():
         # second call cache hit (should NOT call function again)
         resp2 = wrapped()
         assert resp2.data == b"ok"
-        assert call_count["count"] == 1 
+        assert call_count["count"] == 1
         assert resp2.headers["Cache-Hit"] == "True"
+
 
 def test_cache_control_header():
     flask_app = Flask(__name__)
@@ -94,9 +97,11 @@ def test_cache_control_header():
 
     # we set always cache = true so we don't have to check the CONFIG
     # variable for the cache config values
-    wrapped = flask_cache.cached_view(always_cache=True)(test_func)
+    wrapped = flask_cache.cached_view(
+        always_cache=True)(test_func)
 
-    with flask_app.test_request_context("/test", headers={"Cache-Control": "no-cache"}):
+    with flask_app.test_request_context("/test",
+                                        headers={"Cache-Control": "no-cache"}):
         resp = wrapped()
         assert resp.headers["Cache-Control"] == "no-cache"
         assert call_count["count"] == 1
@@ -131,11 +136,13 @@ def test_skip_caching_args_bypasses_cache():
     # function should be called twice (no caching)
     assert call_count["count"] == 2
 
+
 def test_collection_items_permit_args():
     flask_app = Flask(__name__)
     flask_cache = make_flask_cache(flask_app, cache_type_override="SIMPLE")
 
-    flask_cache.collection_id_to_cache_config["foo"] = {"permit_args": ["bbox"]}
+    flask_cache.collection_id_to_cache_config["foo"] = {
+        "permit_args": ["bbox"]}
 
     call_count = {"count": 0}
 
@@ -147,7 +154,8 @@ def test_collection_items_permit_args():
 
     client = flask_app.test_client()
 
-    # bbox present and normally would be bypassed, but when explicitly permitted should cache
+    # bbox present and normally would be bypassed, but when
+    # explicitly permitted should cache
     client.get("/collections/foo/items?bbox=1,2,3,4")
     client.get("/collections/foo/items?bbox=1,2,3,4")
 
