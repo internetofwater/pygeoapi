@@ -43,6 +43,7 @@ from pygeoapi.util import get_from_headers
 
 LOGGER = logging.getLogger(__name__)
 
+
 class FlaskCacheConfig(TypedDict):
     """
     The configuration for the flask cache
