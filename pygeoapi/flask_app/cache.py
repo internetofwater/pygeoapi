@@ -45,36 +45,9 @@ CONFIG = get_config()
 DEFAULT_TTL = os.environ.get('PYGEOAPI_DEFAULT_CACHE_TTL_SECONDS', 3600)
 
 
-def make_flask_cache(APP: Flask) -> Cache:
-    """
-    Factory function to create a flask cache instance.
-
-    :param APP: Flask app instance to initialize the cache for
-
-    :returns: A `flask_caching.Cache` instance
-    """
-    _FLASK_CACHE = os.environ.get('PYGEOAPI_FLASK_CACHE')
-    _REDIS_HOST = os.environ.get('PYGEOAPI_REDIS_HOST')
-    _REDIS_PORT = os.environ.get('PYGEOAPI_REDIS_PORT')
-
-    if _FLASK_CACHE:
-        LOGGER.info(f'Initializing {_FLASK_CACHE} cache')
-        return FlaskCache(APP, config={'CACHE_TYPE': 'SimpleCache'})
-
-    elif _REDIS_HOST and _REDIS_PORT:
-        LOGGER.info(f'Initializing Redis cache at {_REDIS_HOST}:{_REDIS_PORT}')
-        APP.config['CACHE_REDIS_HOST'] = _REDIS_HOST
-        APP.config['CACHE_REDIS_PORT'] = _REDIS_PORT
-        APP.config['CACHE_TYPE'] = 'RedisCache'
-        return FlaskCache(APP)
-
-    else:
-        LOGGER.warning('Initializing dummy flask cache without persistence')
-        return FlaskCache(APP, config={'CACHE_TYPE': 'NullCache'})
-
-
 class FlaskCache(Cache):
-    def cached_view(
+    """Wrapper around to add a decorator for caching OGC API Flask views"""
+    def cache_view(
         self,
         skip_caching_args: list[str] | None = None,
         always_cache: bool = False
@@ -82,13 +55,13 @@ class FlaskCache(Cache):
         """
         Decorator to cache flask views
 
-        :param cache: `flask_caching.Cache` instance
         :param skip_caching_args: `list` of arguments that when present in
-                the request will skip the cache
-        :param always_cache: if True, the view will try to cache without checking 
-        the pygeoapi configuration for the particular resource;
-        This is useful for caching endpoints like `/collections` which return 
-        data which rarely change
+            the request will skip the cache
+        :param always_cache: if True, the view will try to cache without
+            the pygeoapi configuration for the particular resource;
+            This is useful for caching endpoints like `/collections`
+            and `/collections/{collection_id}` which contain metadata
+            that is not expected to change frequently
 
         :returns: decorated flask view function
         """
@@ -182,3 +155,48 @@ class FlaskCache(Cache):
             return wrapped
 
         return decorator
+
+
+def make_flask_cache(APP: Flask) -> FlaskCache | None:
+    """
+    Factory function to create a flask cache instance.
+
+    :param APP: Flask app instance to initialize the cache for
+
+    :returns: A `FlaskCache` instance
+    """
+    _FLASK_CACHE = os.environ.get('PYGEOAPI_FLASK_CACHE_TYPE')
+    _REDIS_HOST = os.environ.get('PYGEOAPI_REDIS_HOST')
+    _REDIS_PORT = os.environ.get('PYGEOAPI_REDIS_PORT')
+    match _FLASK_CACHE:
+        case 'REDIS':
+            # Redis cache, which maintains global cache state
+            # and is good for production deployments, but requires Redis
+            if not (_REDIS_HOST and _REDIS_PORT):
+                raise ValueError(
+                    'Missing host and port vars for REDIS flask cache'
+                )
+
+            LOGGER.info(
+                f'Initializing REDIS cache at {_REDIS_HOST}:{_REDIS_PORT}'
+            )
+
+            APP.config['CACHE_REDIS_HOST'] = _REDIS_HOST
+            APP.config['CACHE_REDIS_PORT'] = _REDIS_PORT
+            APP.config['CACHE_TYPE'] = 'RedisCache'
+            return FlaskCache(APP)
+
+        case 'SIMPLE':
+            # Simple cache, which is not shared across threads
+            # and processes, but is good for testing and development
+            LOGGER.info('Initializing SIMPLE cache')
+            return FlaskCache(APP, config={'CACHE_TYPE': 'SimpleCache'})
+
+        case None | 'Null':
+            # Null cache, which does not actually cache anything, but allows
+            # the code to run without modification when caching is not desired
+            LOGGER.warning('Initializing dummy cache without persistence')
+            return FlaskCache(APP, config={'CACHE_TYPE': 'NullCache'})
+
+        case _:
+            raise ValueError(f'Undefined Flask Cache type {_FLASK_CACHE}')
