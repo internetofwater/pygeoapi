@@ -30,7 +30,7 @@
 
 
 import os
-from flask import Flask, Response
+from flask import Flask, Response, request
 import pytest
 from time import sleep
 
@@ -205,7 +205,6 @@ def test_accept_headers_included_in_cache():
 
     def test_func():
         call_count['count'] += 1
-        from flask import request
         # Return different content based on Accept header
         if request.headers.get('Accept') == 'application/json':
             return Response(
