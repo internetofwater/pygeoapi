@@ -82,7 +82,7 @@ def get_mapping(
     parameter_names: str | list = None,
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
-    Query Ontology graph for matching EDR collectionad and parameters
+    Query Ontology graph for matching EDR collection and parameters
     to create a dictionary mapping from OGC Collection to ODM2
     Vocabulary
 
