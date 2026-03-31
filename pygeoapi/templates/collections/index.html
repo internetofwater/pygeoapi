@@ -61,7 +61,7 @@
     {% if data['parameterGroups'] %}
     <section id="parameter-groups">
       <h1>{% trans %}Parameter groups in this service{% endtrans %}</h1>
-        <table class="table table-striped table-bordered">
+        <table class="table table-striped table-bordered mb-0">
         {% for pg in data['parameterGroups'] -%}
         <tr>
             <td>
@@ -69,14 +69,30 @@
                 <summary><strong>{{ pg['label'] }}</strong> ({{ pg.members|length }} matches)</summary>
                 <table style="background: #FFF" class="table table-condensed mb-0">
                 {% for k, v in pg.members.items() %}
+                  {% set parameter_names = {} %}
+                  {% for c in data.collections if c.id == k %}
+                    {% set _ = parameter_names.update(c.parameter_names) %}
+                  {% endfor %}
                   <tr>
                     <td>
                       <details>
                         <summary><strong>{{ config.resources[k].title | striptags }}</strong> ({{ v|length }} matches)</summary>
-                        <ul class="mb-0">
-                        {% for i in v %}
-                        <li>{{ i }}</li>
-                        {% endfor %}
+                        <table style="background: #FFF" class="table table-condensed mb-0">
+                          <tr>
+                            <th>id</th>
+                            <th>name</th>
+                            <th>units</th>
+                          </tr>
+                          {% for sub in v %}
+                          <tr>
+                            <td>{{ sub }}</td>
+                            {% set parameter = parameter_names[sub] %}
+                            <td>{{ parameter['observedProperty']['label'].values()|first }}{% if parameter['observedProperty']['description'] %}<br/><i>{{ parameter['observedProperty']['description'].values()|first }}</i>{% endif %}</td>
+                            <td>{{ parameter['unit']['symbol']['value'] }}</td>
+                          </tr>
+                          {% endfor %}
+                        </table>
+    
                         </ul>  
                       </details>
                     </td>
