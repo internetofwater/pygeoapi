@@ -262,7 +262,7 @@ def test_accept_headers_included_in_cache():
 
 def test_digest_header_skips_cache():
     '''Test that digest headers are excluded from cache key generation.
-    
+
     This ensures that requests with different digest headers still hit
     the same cache entry, as digest headers should not affect caching.
     '''
@@ -287,7 +287,7 @@ def test_digest_header_skips_cache():
     # Second request with digest header should still hit cache
     # (digest headers should be ignored in cache key generation)
     with flask_app.test_request_context(
-        '/test', 
+        '/test',
         headers={'Want-Content-Digest': 'SHA256'}
     ):
         resp2 = wrapped()
@@ -307,5 +307,5 @@ def test_digest_header_skips_cache():
     with flask_app.test_request_context('/test'):
         resp1 = wrapped()
         assert resp1.data == b'1'
-        assert call_count['count'] == 3 # Should not increment
+        assert call_count['count'] == 3  # Should not increment
         assert resp1.headers['Cache-Hit'] == 'True'
