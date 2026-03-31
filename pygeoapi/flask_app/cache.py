@@ -106,6 +106,12 @@ class FlaskCache(Cache):
         def decorator(f):
             # if the view has not been configured to be cached, skip it
             def skip_cache():
+                api_request = APIRequest(request, ['en'])
+                if api_request._digest:
+                    # if request includes digest header,
+                    # it should be served fresh
+                    return True
+
                 if always_cache:
                     # attempt to cache the view
                     # will still defer to Cache-Control headers

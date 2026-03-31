@@ -258,3 +258,54 @@ def test_accept_headers_included_in_cache():
         assert resp4.content_type == 'text/html'
         assert call_count['count'] == 2  # Should not increment
         assert resp4.headers['Cache-Hit'] == 'True'
+
+
+def test_digest_header_skips_cache():
+    '''Test that digest headers are excluded from cache key generation.
+    
+    This ensures that requests with different digest headers still hit
+    the same cache entry, as digest headers should not affect caching.
+    '''
+    flask_app = Flask(__name__)
+    flask_cache = make_flask_cache(flask_app, cache_type_override='SIMPLE')
+
+    call_count = {'count': 0}
+
+    def test_func():
+        call_count['count'] += 1
+        return Response(str(call_count['count']))
+
+    wrapped = flask_cache.cached_view(always_cache=True)(test_func)
+
+    # Lastly request without digest header
+    with flask_app.test_request_context('/test'):
+        resp1 = wrapped()
+        assert resp1.data == b'1'
+        assert call_count['count'] == 1
+        assert resp1.headers['Cache-Hit'] == 'False'
+
+    # Second request with digest header should still hit cache
+    # (digest headers should be ignored in cache key generation)
+    with flask_app.test_request_context(
+        '/test', 
+        headers={'Want-Content-Digest': 'SHA256'}
+    ):
+        resp2 = wrapped()
+        assert resp2.data == b'2'
+        assert call_count['count'] == 2  # Should increment
+
+    # Third request with different digest header should also hit cache
+    with flask_app.test_request_context(
+        '/test',
+        headers={'Want-Content-Digest': 'SHA256'}
+    ):
+        resp3 = wrapped()
+        assert resp3.data == b'3'
+        assert call_count['count'] == 3  # Should increment
+
+    # Last request without digest headern (cache hit from first request)
+    with flask_app.test_request_context('/test'):
+        resp1 = wrapped()
+        assert resp1.data == b'1'
+        assert call_count['count'] == 3 # Should not increment
+        assert resp1.headers['Cache-Hit'] == 'True'
