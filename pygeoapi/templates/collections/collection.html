@@ -160,7 +160,7 @@
                     <tr>
                       <td>{{sub}}
                       {% set parameter = data.parameter_names[sub] %}
-                      <td>{{ parameter['observedProperty']['label'].values()|first }}</td>
+                      <td>{{ parameter['observedProperty']['label'].values()|first }}{% if parameter['observedProperty']['description'] %}<br/><i>{{ parameter['observedProperty']['description'].values()|first }}</i>{% endif %}</td>
                       <td>{{ parameter['unit']['symbol']['value'] }}</td>
                     </tr>
                   {% endfor %}
@@ -172,9 +172,7 @@
             {% endfor %}
         </table>
 
-      {%- endif -%}
-
-      {% if 'parameter_names' in data %}
+      {% elif 'parameter_names' in data %}
       <h3>Parameters</h3>
       <table class="table table-striped table-bordered">
         <tr>
