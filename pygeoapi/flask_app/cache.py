@@ -37,6 +37,7 @@ from functools import wraps
 import logging
 import os
 
+from pygeoapi.api import APIRequest
 from pygeoapi.config import get_config
 from pygeoapi.util import get_from_headers
 
@@ -105,6 +106,12 @@ class FlaskCache(Cache):
         def decorator(f):
             # if the view has not been configured to be cached, skip it
             def skip_cache():
+                api_request = APIRequest(request, ['en'])
+                if api_request._digest:
+                    # if request includes digest header,
+                    # it should be served fresh
+                    return True
+
                 if always_cache:
                     # attempt to cache the view
                     # will still defer to Cache-Control headers
@@ -140,7 +147,13 @@ class FlaskCache(Cache):
             # include headers since those can change between requests
             # without affecting data
             def make_cache_key():
-                return f'view/{request.method}/{request.full_path}'
+                api_request = APIRequest(request, ['en'])
+                return (
+                    f'view'
+                    f'/{request.method}'
+                    f'/{api_request.format}'
+                    f'/{request.full_path}'
+                )
 
             def get_ttl():
                 cache_config = get_cache_config_for_request()
