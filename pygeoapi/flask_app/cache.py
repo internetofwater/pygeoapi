@@ -241,7 +241,7 @@ def make_flask_cache(APP: Flask,
     match _FLASK_CACHE_TYPE:
         case 'REDIS':
             _REDIS_HOST = os.environ.get('REDIS_HOST')
-            _REDIS_PORT = os.environ.get('REDIS_PORT')
+            _REDIS_PORT = os.environ.get('REDIS_PORT', 6379)
             # Redis cache, which maintains global cache state
             # and is good for production deployments, but requires Redis
             if not (_REDIS_HOST and _REDIS_PORT):
