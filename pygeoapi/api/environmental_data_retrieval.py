@@ -446,14 +446,14 @@ def get_collection_edr_query(api: API, request: APIRequest,
 
     if data.get('parameters') and dataset in onto_mapping:
         parameter_groups = {}
-        parameters = (
+        parameters = deepcopy(
             data['parameters']
             if isinstance(data['parameters'], dict) else
             {p['id']: p for p in data['parameters']}
         )
         for parameter in parameters:
             apply_mapping(
-                parameters=parameters,
+                parameters=data['parameters'],
                 onto_mapping=onto_mapping,
                 parameter_groups=parameter_groups,
                 dataset=dataset,
