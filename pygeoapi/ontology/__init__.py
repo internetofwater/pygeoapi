@@ -32,14 +32,17 @@ import logging
 import os
 from pathlib import Path
 from rdflib import Graph
-from typing import TypedDict
+from typing import Any, TypedDict
 
 LOGGER = logging.getLogger(__name__)
 
 THISDIR = Path(__file__).parent.resolve()
 
 SELECT = (
-    'SELECT DISTINCT ?collection_id ?parameter_id ?concept_name ?concept_group'  # noqa
+    'SELECT DISTINCT '
+    '?collection_id '
+    '?parameter_id ?parameter_name ?parameter_def '
+    '?concept_name ?concept_group'
 )
 
 SKOS_ANYMATCH = (
@@ -76,10 +79,12 @@ def get_graph() -> Graph:
     GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl')
     if Path(GRAPH).exists():
         return Graph().parse(GRAPH)
+    else:
+        raise FileNotFoundError(f"Ontology graph not found at {GRAPH}")
 
 
 def get_mapping(
-    parameter_names: str | list = None,
+    parameter_names: str | list | None = None,
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collection and parameters
@@ -144,15 +149,24 @@ def _get_mapping(
             {VALUES}
 
         ?concept_group skos:inScheme {CONCEPT_SCHEME} ;
-                       skos:broader*/skos:prefLabel ?concept_name .
+            skos:broader*/skos:prefLabel ?concept_name .
 
-        ?match (skos:exactMatch|^skos:exactMatch) ?concept_group ;
-                    skos:broader/skos:hiddenLabel ?collection_id ;
-                    skos:hiddenLabel ?parameter_id .
+        OPTIONAL {{
+            ?concept_group skos:prefLabel ?parameter_name .
+        }}
+        OPTIONAL {{
+            ?concept_group skos:definition ?parameter_def .
+        }}
+
+        ?match {SKOS_ANYMATCH} ?concept_group ;
+            skos:broader/skos:hiddenLabel ?collection_id ;
+            skos:hiddenLabel ?parameter_id .
         }}
     """
     try:
-        response = get_graph().query(query)
+        # rdflib does not type properly, thus
+        # it must be simply declared as Any
+        response: Any = get_graph().query(query)
     except Exception:
         msg = 'Unable to find parameter in ontology mapping'
         LOGGER.warning(msg, exc_info=True)
@@ -160,9 +174,10 @@ def _get_mapping(
 
     mapping_dict: dict[str, dict[str, KeyTitleDict]] = {}
     for row in response:
-
         collection_id = row.collection_id.toPython()
         parameter_id = row.parameter_id.toPython().replace('+', ' ')
+        parameter_name = str(row.parameter_name or '')
+        parameter_def = str(row.parameter_def or '')
         concept_name = row.concept_name.toPython()
         concept_group = row.concept_group.toPython()
 
@@ -170,7 +185,11 @@ def _get_mapping(
             mapping_dict
             .setdefault(collection_id, {})
             .setdefault(parameter_id, {})
-            .update({concept_name: concept_group})
+            .update({
+                concept_name: concept_group,
+                'parameter_name': parameter_name,
+                'parameter_def': parameter_def
+            })
         )
 
     return mapping_dict
@@ -196,20 +215,53 @@ def apply_mapping(
 
     :returns: None
     """
+    # Check if dataset (collection) has is in the ontology mapping
+    # if not, then filter out this collection. Should only apply to
+    # `/collections` and `/collections/{collection_id}` queries
     if dataset not in onto_mapping:
         LOGGER.debug(f'No mapping found for {dataset}')
         return
 
-    if isinstance(parameters, list):
-        parameter = parameters.index(parameter)
-
+    # Check if parameter is in the ontology mapping for dataset (collection)
+    # if not, then filter out this parameter. Should only apply to
+    # `/collections` and `/collections/{collection_id}` queries
     if parameter not in onto_mapping[dataset]:
+        LOGGER.warning(f'No mapping found for {parameter} in {dataset}')
         parameters.pop(parameter)
         return
 
+    # Handle edge case lookup where parameter object is a list
+    # instead of an object with key lookup. This is the case
+    # for EDR GeoJSON for some reason
+    if isinstance(parameters, list):
+        parameter = parameters.index(parameter)
+
+    # Get ontology mapping for this dataset and parameter
     param_mapping = onto_mapping[dataset][parameter]
+
+    # Fetch the parameter name and definition from the mapping, if available
+    # and apply them to the parameter's name and observedProperty description.
+    # This allows us to provide more user-friendly labels and descriptions for
+    # parameters based on the Vocbench concept mapping
+    param_name = param_mapping.pop('parameter_name', None)
+    obs_prop = parameters[parameter]['observedProperty']
+    if param_name:
+        obs_prop['label'] = {'en': param_name}
+
+    param_def = param_mapping.pop('parameter_def', None)
+    if param_def:
+        obs_prop['description'] = {'en': param_def}
+
+    # Remaining items are groups that the parameter is mapped to
+    # which mean we need to add the parameter to the corresponding group
+
+    # Map parameter to parameterGroup
     parameters[parameter]['narrowerThan'] = [*param_mapping]
+
+    # Map parameter group to parameters
     for param, id in param_mapping.items():
+
+        # Create parameter groups for each concept
         if param not in parameter_groups:
             parameter_groups[param] = {
                 'type': 'ParameterGroup',
@@ -226,6 +278,8 @@ def apply_mapping(
                 'members': [] if single_dataset else {}
             }
 
+        # Add parameter to parameter group members. If single_dataset
+        # is True, we do not need to namespace members by dataset.
         members = parameter_groups[param]['members']
         if single_dataset:
             members.append(parameter)
