@@ -79,10 +79,12 @@ def get_graph() -> Graph:
     GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl')
     if Path(GRAPH).exists():
         return Graph().parse(GRAPH)
+    else:
+        raise FileNotFoundError(f"Ontology graph not found at {GRAPH}")
 
 
 def get_mapping(
-    parameter_names: str | list = None,
+    parameter_names: str | list | None = None,
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collection and parameters
@@ -223,6 +225,9 @@ def apply_mapping(
     # `/collections` and `/collections/{collection_id}` queries
     if parameter not in onto_mapping[dataset]:
         LOGGER.warning(f'No mapping found for {parameter} in {dataset}')
+        assert isinstance(parameters, dict), \
+            f'parameters must be a dict to pop {parameter}; {parameters}'
+
         parameters.pop(parameter)
         return
 
