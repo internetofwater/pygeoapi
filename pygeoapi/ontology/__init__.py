@@ -32,7 +32,7 @@ import logging
 import os
 from pathlib import Path
 from rdflib import Graph
-from typing import TypedDict
+from typing import Any, TypedDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,10 +79,12 @@ def get_graph() -> Graph:
     GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl')
     if Path(GRAPH).exists():
         return Graph().parse(GRAPH)
+    else:
+        raise FileNotFoundError(f"Ontology graph not found at {GRAPH}")
 
 
 def get_mapping(
-    parameter_names: str | list = None,
+    parameter_names: str | list | None = None,
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collection and parameters
@@ -162,7 +164,9 @@ def _get_mapping(
         }}
     """
     try:
-        response = get_graph().query(query)
+        # rdflib does not type properly, thus
+        # it must be simply declared as Any
+        response: Any = get_graph().query(query)
     except Exception:
         msg = 'Unable to find parameter in ontology mapping'
         LOGGER.warning(msg, exc_info=True)
