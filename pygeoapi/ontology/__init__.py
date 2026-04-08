@@ -240,15 +240,16 @@ def apply_mapping(
     # This allows us to provide more user-friendly labels and descriptions for
     # parameters based on the Vocbench concept mapping
     param_name = param_mapping.pop('parameter_name', None)
+    obs_prop = parameters[parameter]['observedProperty']
     if param_name:
-        parameters[parameter]['observedProperty']['label'] = {'en': param_name}
+        obs_prop['label'] = {'en': param_name}
 
     param_def = param_mapping.pop('parameter_def', None)
     if param_def:
-        parameters[parameter]['observedProperty']['description'] = {'en': param_def}
+        obs_prop['description'] = {'en': param_def}
 
-    # Remaining items are concepts that the parameter is mapped to
-    # which mean we need to add the parameter to the corresponding parameter groups
+    # Remaining items are groups that the parameter is mapped to
+    # which mean we need to add the parameter to the corresponding group
 
     # Map parameter to parameterGroup
     parameters[parameter]['narrowerThan'] = [*param_mapping]
@@ -256,7 +257,7 @@ def apply_mapping(
     # Map parameter group to parameters
     for param, id in param_mapping.items():
 
-        # Create parameter groups for each concept 
+        # Create parameter groups for each concept
         if param not in parameter_groups:
             parameter_groups[param] = {
                 'type': 'ParameterGroup',
@@ -273,8 +274,8 @@ def apply_mapping(
                 'members': [] if single_dataset else {}
             }
 
-        # Add parameter to parameter group members. If single_dataset is True, then
-        # we do not need to namespace members by dataset.
+        # Add parameter to parameter group members. If single_dataset
+        # is True, we do not need to namespace members by dataset.
         members = parameter_groups[param]['members']
         if single_dataset:
             members.append(parameter)
