@@ -32,7 +32,7 @@ import logging
 import os
 from pathlib import Path
 from rdflib import Graph
-from typing import TypedDict
+from typing import Any, TypedDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -164,7 +164,9 @@ def _get_mapping(
         }}
     """
     try:
-        response = get_graph().query(query)
+        # rdflib does not type properly, thus
+        # it must be simply declared as Any
+        response: Any = get_graph().query(query)
     except Exception:
         msg = 'Unable to find parameter in ontology mapping'
         LOGGER.warning(msg, exc_info=True)
