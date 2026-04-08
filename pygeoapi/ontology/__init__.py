@@ -225,9 +225,6 @@ def apply_mapping(
     # `/collections` and `/collections/{collection_id}` queries
     if parameter not in onto_mapping[dataset]:
         LOGGER.warning(f'No mapping found for {parameter} in {dataset}')
-        assert isinstance(parameters, dict), \
-            f'parameters must be a dict to pop {parameter}; {parameters}'
-
         parameters.pop(parameter)
         return
 
