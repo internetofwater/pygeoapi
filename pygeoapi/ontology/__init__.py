@@ -226,7 +226,7 @@ def apply_mapping(
     # if not, then filter out this parameter. Should only apply to
     # `/collections` and `/collections/{collection_id}` queries
     if parameter not in onto_mapping[dataset]:
-        LOGGER.warning(f'No mapping found for {parameter} in {dataset}')
+        LOGGER.debug(f'No mapping found for {parameter} in {dataset}')
         parameters.pop(parameter)
         return
 
