@@ -27,6 +27,7 @@
 #
 # =================================================================
 
+from copy import deepcopy
 import functools
 import logging
 import os
@@ -39,10 +40,8 @@ LOGGER = logging.getLogger(__name__)
 THISDIR = Path(__file__).parent.resolve()
 
 SELECT = (
-    'SELECT DISTINCT '
-    '?collection_id '
-    '?parameter_id ?parameter_name ?parameter_def '
-    '?concept_name ?concept_group'
+    'SELECT DISTINCT ?collection_id ?parameter_id ?parameter_name '
+    '?parameter_def ?concept_name ?concept_group'
 )
 
 SKOS_ANYMATCH = (
@@ -137,7 +136,10 @@ def _get_mapping(
         )
 
         if values:
-            VALUES = f'VALUES ?concept {{ {values} }}'
+            VALUES = f'''
+                VALUES ?concept {{ {values} }}
+                ?concept skos:broader+/skos:prefLabel ?concept_name .
+                '''
 
         elif value_names:
             VALUES = f'VALUES ?concept_name {{ {value_names} }}\n'
@@ -146,7 +148,7 @@ def _get_mapping(
         {PREFIXES}
         {SELECT}
         WHERE {{
-            {VALUES}
+        {VALUES}
 
         ?concept_group skos:inScheme {CONCEPT_SCHEME} ;
             skos:broader*/skos:prefLabel ?concept_name .
@@ -237,7 +239,7 @@ def apply_mapping(
         parameter = parameters.index(parameter)
 
     # Get ontology mapping for this dataset and parameter
-    param_mapping = onto_mapping[dataset][parameter]
+    param_mapping = deepcopy(onto_mapping[dataset][parameter])
 
     # Fetch the parameter name and definition from the mapping, if available
     # and apply them to the parameter's name and observedProperty description.
