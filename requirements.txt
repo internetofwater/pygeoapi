@@ -5,7 +5,7 @@ Flask
 Flask-Caching
 jinja2
 jsonschema
-pydantic>2.0
+pydantic
 pygeoapi-plugins
 pygeofilter
 pygeoif

@@ -33817,7 +33817,7 @@ skos:semanticRelation a rdf:Property,
 <https://api.wwdh.internetofwater.app/collections/usgs-prism> a skos:Collection,
         skos:Concept ;
     skos:broader <https://api.wwdh.internetofwater.app/collections> ;
-    skos:hiddenLabel "usgs-prism"@en-us ;
+    skos:hiddenLabel "usgs-prism2"@en-us ;
     skos:inScheme <https://api.wwdh.internetofwater.app> ;
     skos:member "https://api.wwdh.internetofwater.app/collections/usgs-prism/cube"^^xsd:anyURI,
         "https://api.wwdh.internetofwater.app/collections/usgs-prism/position"^^xsd:anyURI ;

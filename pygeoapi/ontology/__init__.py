@@ -41,7 +41,7 @@ THISDIR = Path(__file__).parent.resolve()
 
 SELECT = (
     'SELECT DISTINCT ?collection_id ?parameter_id ?parameter_name '
-    '?parameter_def ?concept_name ?concept_group'
+    '?parameter_def ?parameter_unit ?concept_name ?concept_group'
 )
 
 SKOS_ANYMATCH = (
@@ -59,6 +59,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX qudt: <http://qudt.org/schema/qudt/>
 """
 
 
@@ -159,6 +160,9 @@ def _get_mapping(
         OPTIONAL {{
             ?concept_group skos:definition ?parameter_def .
         }}
+        OPTIONAL {{
+            ?concept_group qudt:hasUnit ?parameter_unit .
+        }}
 
         ?match {SKOS_ANYMATCH} ?concept_group ;
             skos:broader/skos:hiddenLabel ?collection_id ;
@@ -180,6 +184,7 @@ def _get_mapping(
         parameter_id = row.parameter_id.toPython().replace('+', ' ')
         parameter_name = str(row.parameter_name or '')
         parameter_def = str(row.parameter_def or '')
+        parameter_unit = str(row.parameter_unit or '')
         concept_name = row.concept_name.toPython()
         concept_group = row.concept_group.toPython()
 
@@ -190,7 +195,8 @@ def _get_mapping(
             .update({
                 concept_name: concept_group,
                 'parameter_name': parameter_name,
-                'parameter_def': parameter_def
+                'parameter_def': parameter_def,
+                'parameter_unit': parameter_unit
             })
         )
 
@@ -241,7 +247,7 @@ def apply_mapping(
     # Get ontology mapping for this dataset and parameter
     param_mapping = deepcopy(onto_mapping[dataset][parameter])
 
-    # Fetch the parameter name and definition from the mapping, if available
+    # Fetch the parameter name, unit and definition from the mapping,
     # and apply them to the parameter's name and observedProperty description.
     # This allows us to provide more user-friendly labels and descriptions for
     # parameters based on the Vocbench concept mapping
@@ -253,6 +259,15 @@ def apply_mapping(
     param_def = param_mapping.pop('parameter_def', None)
     if param_def:
         obs_prop['description'] = {'en': param_def}
+
+    param_unit = param_mapping.pop('parameter_unit', None)
+    if param_unit:
+
+        prefix, term = param_unit.rsplit('/', 1)
+        parameters[parameter]['unit']['symbol'] = {
+            'value': term,
+            'type': f'{prefix}/'
+        }
 
     # Remaining items are groups that the parameter is mapped to
     # which mean we need to add the parameter to the corresponding group

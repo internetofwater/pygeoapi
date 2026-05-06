@@ -79,9 +79,9 @@
                         <summary><strong>{{ config.resources[k].title | striptags }}</strong> ({{ v|length }} matches)</summary>
                         <table style="background: #FFF" class="table table-condensed mb-0">
                           <tr>
-                            <th>id</th>
+                            <th style="width: 120px;">id</th>
                             <th>name</th>
-                            <th>units</th>
+                            <th style="width: 120px;">units</th>
                           </tr>
                           {% if v[0] | int != 0 %}
                             {% set v = v | map('int') | sort | map('string') %}
@@ -91,7 +91,9 @@
                             <td>{{ sub }}</td>
                             {% set parameter = parameter_names[sub] %}
                             <td>{{ parameter['observedProperty']['label'].values()|first }}{% if parameter['observedProperty']['description'] %}<br/><i>{{ parameter['observedProperty']['description'].values()|first }}</i>{% endif %}</td>
-                            <td>{{ parameter['unit']['symbol']['value'] }}</td>
+                            <td>
+                              <a title="{{ parameter['unit']['label'].values()|first }}" href="{{ parameter.unit.symbol.type }}{{ parameter.unit.symbol.value }}">{{ parameter['unit']['symbol']['value'] }}</a>
+                            </td>
                           </tr>
                           {% endfor %}
                         </table>
