@@ -62,7 +62,7 @@
     <section id="parameter-groups">
       <h1>{% trans %}Parameter groups in this service{% endtrans %}</h1>
         <table class="table table-striped table-bordered mb-0">
-        {% for pg in data['parameterGroups'] -%}
+        {% for pg in data['parameterGroups'] | sort(attribute='name') -%}
         <tr>
             <td>
               <details>
@@ -83,6 +83,9 @@
                             <th>name</th>
                             <th>units</th>
                           </tr>
+                          {% if v[0] | int != 0 %}
+                            {% set v = v | map('int') | sort | map('string') %}
+                          {% endif %}
                           {% for sub in v %}
                           <tr>
                             <td>{{ sub }}</td>
