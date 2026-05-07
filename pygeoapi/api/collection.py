@@ -407,6 +407,7 @@ def gen_collection(api, request, dataset: str,
         # TODO: translate
         LOGGER.debug('Adding EDR links')
         parameternames = request.params.get('parameter-name')
+        filter_parameters = parameternames is not None
         if isinstance(parameternames, str):
             parameternames = set(parameternames.split(','))
         onto_mapping = get_mapping(parameternames)
