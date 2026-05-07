@@ -223,6 +223,7 @@ def apply_mapping(
     parameter_groups: dict,
     dataset: str,
     parameter: str,
+    filter_parameters: bool = False,
     single_dataset: bool = False,
 ):
     """
@@ -245,11 +246,12 @@ def apply_mapping(
         return
 
     # Check if parameter is in the ontology mapping for dataset (collection)
-    # if not, then filter out this parameter. Should only apply to
+    # if not, then filter out this parameter. Will only apply to
     # `/collections` and `/collections/{collection_id}` queries
     if parameter not in onto_mapping[dataset]:
-        LOGGER.debug(f'No mapping found for {parameter} in {dataset}')
-        parameters.pop(parameter)
+        LOGGER.warning(f'No mapping found for {parameter} in {dataset}')
+        if filter_parameters:
+            parameters.pop(parameter)
         return
 
     # Handle edge case lookup where parameter object is a list
