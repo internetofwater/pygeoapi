@@ -402,6 +402,7 @@ def gen_collection(api, request, dataset: str,
         # TODO: translate
         LOGGER.debug('Adding EDR links')
         parameternames = request.params.get('parameter-name')
+        filter_parameters = parameternames is not None
         if isinstance(parameternames, str):
             parameternames = set(parameternames.split(','))
         onto_mapping = get_mapping(parameternames)
@@ -448,7 +449,8 @@ def gen_collection(api, request, dataset: str,
                     onto_mapping=onto_mapping,
                     parameter_groups=parameter_groups,
                     dataset=dataset,
-                    parameter=key
+                    parameter=key,
+                    filter_parameters=filter_parameters
                 )
 
         for qt in p.get_query_types():
