@@ -152,9 +152,9 @@
                 <summary><strong>{{ pg['label'] }}</strong> ({{ pg.members[data.id]|length }} matches)</summary>
                 <table style="background: #FFF" class="table table-condensed mb-0">
                   <tr>
-                    <th>id</th>
+                    <th style="width: 120px;">id</th>
                     <th>name</th>
-                    <th>units</th>
+                    <th style="width: 120px;">units</th>
                   </tr>
                   {% set v = pg.members[data.id] %}
                   {% if v[0] | int != 0 %}
@@ -166,7 +166,11 @@
                       {% set parameter = data.parameter_names[sub] %}
                       <td>{{ parameter['observedProperty']['label'].values()|first }}{% if parameter['observedProperty']['description'] %}<br/><i>{{ parameter['observedProperty']['description'].values()|first }}</i>{% endif %}</td>
                       <td>
-                        <a title="{{ parameter['unit']['label'].values()|first }}" href="{{ parameter.unit.symbol.type }}{{ parameter.unit.symbol.value }}">{{ parameter['unit']['symbol']['value'] }}</a>
+                        {% if parameter.unit.definition %}
+                        <a title="{{ parameter['unit']['label'].values()|first }}" href="{{ parameter.unit.definition }}">{{ parameter['unit']['symbol']['value'] }}</a>
+                        {% else %}
+                        {{ parameter['unit']['symbol']['value'] }}
+                        {% endif %}
                       </td>
                     </tr>
                   {% endfor %}
