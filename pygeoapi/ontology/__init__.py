@@ -40,8 +40,11 @@ LOGGER = logging.getLogger(__name__)
 THISDIR = Path(__file__).parent.resolve()
 
 SELECT = (
-    'SELECT DISTINCT ?collection_id ?parameter_id ?parameter_name '
-    '?parameter_def ?parameter_unit ?concept_name ?concept_group'
+    'SELECT DISTINCT '
+    '?collection_id '
+    '?concept_name ?concept_group '
+    '?parameter_id ?parameter_name ?parameter_def '
+    '?parameter_unit ?parameter_unit_symbol ?parameter_unit_label'
 )
 
 SKOS_ANYMATCH = (
@@ -56,6 +59,7 @@ DEFAULT_PREFIX = os.getenv(
 PREFIXES = f"""
 PREFIX : <{DEFAULT_PREFIX}>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
@@ -84,7 +88,7 @@ def get_graph() -> Graph:
 
 
 def get_mapping(
-    parameter_names: str | list | None = None,
+    parameter_names: str | list | set | None = None,
 ) -> dict[str, dict[str, KeyTitleDict]]:
     """
     Query Ontology graph for matching EDR collection and parameters
@@ -162,6 +166,9 @@ def _get_mapping(
         }}
         OPTIONAL {{
             ?concept_group qudt:hasUnit ?parameter_unit .
+            ?parameter_unit qudt:symbol ?parameter_unit_symbol;
+                            rdfs:label ?parameter_unit_label .
+            FILTER(LANG(?parameter_unit_label) = "en")
         }}
 
         ?match {SKOS_ANYMATCH} ?concept_group ;
@@ -185,6 +192,13 @@ def _get_mapping(
         parameter_name = str(row.parameter_name or '')
         parameter_def = str(row.parameter_def or '')
         parameter_unit = str(row.parameter_unit or '')
+        if parameter_unit:
+            parameter_unit = {
+                'id': parameter_unit,
+                'symbol': str(row.parameter_unit_symbol),
+                'label': str(row.parameter_unit_label)
+            }
+
         concept_name = row.concept_name.toPython()
         concept_group = row.concept_group.toPython()
 
@@ -252,8 +266,10 @@ def apply_mapping(
     # This allows us to provide more user-friendly labels and descriptions for
     # parameters based on the Vocbench concept mapping
     param_name = param_mapping.pop('parameter_name', None)
-    obs_prop = parameters[parameter]['observedProperty']
+    parameter_ = parameters[parameter]
+    obs_prop = parameter_['observedProperty']
     if param_name:
+        parameter_['name'] = param_name
         obs_prop['label'] = {'en': param_name}
 
     param_def = param_mapping.pop('parameter_def', None)
@@ -262,12 +278,10 @@ def apply_mapping(
 
     param_unit = param_mapping.pop('parameter_unit', None)
     if param_unit:
-
-        prefix, term = param_unit.rsplit('/', 1)
-        parameters[parameter]['unit']['symbol'] = {
-            'value': term,
-            'type': f'{prefix}/'
-        }
+        unit = parameter_['unit']
+        unit['definition'] = param_unit['id']
+        unit['label'] = {'en': param_unit['label']}
+        unit['symbol']['value'] = param_unit['symbol']
 
     # Remaining items are groups that the parameter is mapped to
     # which mean we need to add the parameter to the corresponding group
