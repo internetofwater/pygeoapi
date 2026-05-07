@@ -92,7 +92,11 @@
                             {% set parameter = parameter_names[sub] %}
                             <td>{{ parameter['observedProperty']['label'].values()|first }}{% if parameter['observedProperty']['description'] %}<br/><i>{{ parameter['observedProperty']['description'].values()|first }}</i>{% endif %}</td>
                             <td>
-                              <a title="{{ parameter['unit']['label'].values()|first }}" href="{{ parameter.unit.symbol.type }}{{ parameter.unit.symbol.value }}">{{ parameter['unit']['symbol']['value'] }}</a>
+                              {% if parameter.unit.definition %}
+                              <a title="{{ parameter['unit']['label'].values()|first }}" href="{{ parameter.unit.definition }}">{{ parameter['unit']['symbol']['value'] }}</a>
+                              {% else %}
+                              {{ parameter['unit']['symbol']['value'] }}
+                              {% endif %}
                             </td>
                           </tr>
                           {% endfor %}
