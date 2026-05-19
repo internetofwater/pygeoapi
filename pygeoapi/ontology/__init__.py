@@ -79,12 +79,13 @@ class KeyTitleDict(TypedDict):
 
 
 @functools.cache
-def get_graph() -> Graph:
+def get_graph() -> Graph | None:
     GRAPH = os.getenv('PYGEOAPI_ONTOLOGY_GRAPH', THISDIR / 'ontology_min.ttl')
     if Path(GRAPH).exists():
         return Graph().parse(GRAPH)
     else:
-        raise FileNotFoundError(f"Ontology graph not found at {GRAPH}")
+        LOGGER.error(f"Ontology graph not found at {GRAPH}")
+        return None
 
 
 def get_mapping(
