@@ -284,7 +284,10 @@ def apply_mapping(
         unit = parameter_['unit']
         unit['definition'] = param_unit['id']
         unit['label'] = {'en': param_unit['label']}
-        unit['symbol']['value'] = param_unit['symbol']
+        unit['symbol'] = {
+            'value': param_unit['symbol'],
+            'type': 'http://www.opengis.net/def/uom/UCUM/'
+        }
 
     # Remaining items are groups that the parameter is mapped to
     # which mean we need to add the parameter to the corresponding group
