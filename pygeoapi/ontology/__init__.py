@@ -32,6 +32,8 @@ import functools
 import logging
 import os
 from pathlib import Path
+from SPARQLWrapper import SPARQLWrapper, JSON
+import json
 from rdflib import Graph
 from typing import Any, TypedDict
 
@@ -64,6 +66,7 @@ PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX variablename: <http://vocabulary.odm2.org/variablename/>
 PREFIX dct: <http://purl.org/dc/terms/>
 PREFIX qudt: <http://qudt.org/schema/qudt/>
+PREFIX unit: <http://qudt.org/vocab/unit/>
 """
 
 
@@ -322,6 +325,101 @@ def apply_mapping(
             members.append(parameter)
         else:
             members.setdefault(dataset, []).append(parameter)
+
+
+def apply_conversion(unit_out: str, coverage: dict):
+    """
+    Convert units of CovJSON to corresponding unit
+    """
+
+    if coverage['type'] == 'CoverageCollection':
+        coverage_collection = deepcopy(coverage)
+        for coverage2 in coverage_collection:
+            coverage2['parameters'] = coverage_collection['parameters']
+            apply_conversion(unit_out, coverage2)
+
+    for pname, range in coverage['ranges'].items():
+        parameter = coverage['parameters'][pname]
+        pin = parameter['unit'].get('definition')
+        if pin:
+            try:
+                plabel, psymbol = transform_range(pin, unit_out, range)
+            except ValueError:
+                msg = f"Unable to convert {pname} from {pin} to {unit_out}"
+                LOGGER.warning(msg)
+                continue
+
+            parameter['unit']['definition'] = \
+                f"http://qudt.org/vocab/unit/{unit_out}"
+            parameter['unit']['label'] = {'en': plabel}
+            parameter['unit']['symbol'] = {
+                'value': psymbol,
+                'type': 'http://www.opengis.net/def/uom/UCUM/'
+            }
+
+
+def transform_range(unit_in: str, unit_out: str, range: list):
+    values = range['values']
+
+    query = f'''
+    {PREFIXES}
+
+    SELECT
+        ?sOut
+        ?lOut
+        (CONCAT("[", GROUP_CONCAT(?result; separator=", "), "]") as ?values)
+    WHERE {{
+    # ── inputs ──────────────────────────────────────────
+    VALUES ?value {{ {' '.join(map(str, values))} }}
+    BIND(<{unit_in}>         AS ?inUnit)
+    BIND(unit:{unit_out}   AS ?outUnit)
+    # ────────────────────────────────────────────────────
+
+    ?inUnit  qudt:conversionMultiplier ?mIn ;
+            qudt:symbol ?sIn ;
+            qudt:hasDimensionVector   ?dv .
+    ?outUnit qudt:conversionMultiplier ?mOut ;
+            qudt:symbol ?sOut ;
+            rdfs:label ?lOut ;
+            qudt:hasDimensionVector  ?dv .
+
+    # Get Conversion offset
+    OPTIONAL {{ ?inUnit  qudt:conversionOffset ?oIn  }}
+    OPTIONAL {{ ?outUnit qudt:conversionOffset ?oOut }}
+    # Default offset to 0 if not present
+    BIND(COALESCE(?oIn,  0.0) AS ?offsetIn)
+    BIND(COALESCE(?oOut, 0.0) AS ?offsetOut)
+
+    # value → SI base
+    BIND((?value + ?offsetIn) * ?mIn AS ?base)
+
+    # SI base → result
+    BIND((?base / ?mOut) - ?offsetOut AS ?result)
+
+    }}
+    GROUP BY ?sOut ?lOut
+    LIMIT 1
+    '''
+
+    sparql = SPARQLWrapper("https://www.qudt.org/fuseki/qudt/query")
+    sparql.setMethod('POST')
+    sparql.setReturnFormat(JSON)
+    try:
+        # rdflib does not type properly, thus
+        # it must be simply declared as Any
+        sparql.setQuery(query)
+        response: Any = sparql.query().convert()
+    except Exception:
+        msg = 'Unable to find parameter in ontology mapping'
+        LOGGER.warning(msg, exc_info=True)
+
+    bindings = response['results']['bindings']
+    if not bindings:
+        raise ValueError(f"Unable to convert from {unit_in} to {unit_out}")
+
+    bindings = bindings[0]
+    range['values'] = json.loads(bindings['values']['value'])
+    return bindings['lOut']['value'], bindings['sOut']['value']
 
 
 def get_oas_parameter(dataset: str | None = None):

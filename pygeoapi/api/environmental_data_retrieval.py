@@ -53,7 +53,8 @@ from pygeoapi.formats import F_COVERAGEJSON, F_HTML, F_JSON, F_JSONLD
 from pygeoapi.formatter.base import FormatterSerializationError
 from pygeoapi.crs import (create_crs_transform_spec, set_content_crs_header)
 from pygeoapi.openapi import get_oas_30_parameters
-from pygeoapi.ontology import get_mapping, apply_mapping, get_oas_parameter
+from pygeoapi.ontology import (
+    get_mapping, apply_mapping, apply_conversion, get_oas_parameter)
 from pygeoapi.plugin import load_plugin, PLUGINS
 from pygeoapi.provider import filter_providers_by_type, get_provider_by_type
 from pygeoapi.provider.base import (
@@ -463,6 +464,10 @@ def get_collection_edr_query(api: API, request: APIRequest,
 
         if parameter_groups != {}:
             data['parameterGroups'] = list(parameter_groups.values())
+
+    units = request.params.get('units')
+    if units:
+        apply_conversion(units, data)
 
     if request.format == F_HTML:  # render
         tpl_config = api.get_dataset_templates(dataset)

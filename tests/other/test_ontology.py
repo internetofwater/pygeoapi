@@ -27,11 +27,12 @@
 #
 # =================================================================
 
+
 import pytest
 from rdflib import Graph, Namespace, Literal
 from rdflib.namespace import RDF, SKOS, RDFS
 
-from pygeoapi.ontology import get_mapping, apply_mapping, apply_unit_conversion
+from pygeoapi.ontology import get_mapping, apply_mapping, apply_conversion
 
 # Namespaces
 USBR = Namespace("http://lincolninst.edu/cgs/vocabularies/usbr#")
@@ -53,7 +54,20 @@ def point_coverage_data():
                 't': {'values': [
                     '2013-01-01', '2013-01-02', '2013-01-03',
                     '2013-01-04', '2013-01-05', '2013-01-06']}
-            }
+            },
+            "referencing": [{
+                "coordinates": ["y", "x", "z"],
+                "system": {
+                    "type": "GeographicCRS",
+                    "id": "http://www.opengis.net/def/crs/EPSG/0/4979"
+                }
+                }, {
+                "coordinates": ["t"],
+                "system": {
+                    "type": "TemporalRS",
+                    "calendar": "Gregorian"
+                }
+            }]
         },
         'parameters': {
             '47': {
@@ -67,6 +81,8 @@ def point_coverage_data():
         },
         'ranges': {
             '47': {
+                'type': 'NdArray',
+                'dataType': 'float',
                 'axisNames': ['t'],
                 'shape': [6],
                 'values': [
@@ -213,6 +229,7 @@ def test_multiple_mappings():
     assert mapping['Storage'] == \
         'http://lincolninst.edu/cgs/vocabularies/usbr#c_c678a27e'
 
+
 def test_apply_mapping(monkeypatch, ontology_file, point_coverage_data):
     monkeypatch.setenv("PYGEOAPI_ONTOLOGY_GRAPH", str(ontology_file))
 
@@ -234,4 +251,37 @@ def test_apply_mapping(monkeypatch, ontology_file, point_coverage_data):
     assert storage['members'] == ['47']
 
     assert parameters['47']['narrowerThan'] == ['Storage']
-    assert parameters['47']['unit']['definition'] == 'http://qudt.org/vocab/unit/AC-FT'
+    assert parameters['47']['unit']['definition'] == \
+        'http://qudt.org/vocab/unit/AC-FT'
+
+
+def test_apply_conversion(monkeypatch, ontology_file, point_coverage_data):
+    monkeypatch.setenv("PYGEOAPI_ONTOLOGY_GRAPH", str(ontology_file))
+
+    parameter_groups = {}
+    onto_mapping = get_mapping(['Storage', 'Inflow'])
+    parameters = point_coverage_data['parameters']
+    for parameter in parameters:
+        apply_mapping(
+            parameters=point_coverage_data['parameters'],
+            onto_mapping=onto_mapping,
+            parameter_groups=parameter_groups,
+            dataset='rise-edr',
+            parameter=parameter,
+            single_dataset=True
+        )
+
+    assert point_coverage_data['ranges']['47']['values'] == [
+        43.9599, 43.9599, 43.9640, 43.9640, 43.9679, 43.987
+    ]
+    # Unit cannot convert
+    apply_conversion('FT', point_coverage_data)
+    assert point_coverage_data['ranges']['47']['values'] == [
+        43.9599, 43.9599, 43.9640, 43.9640, 43.9679, 43.987
+    ]
+    # Unit can convert
+    apply_conversion('CUP', point_coverage_data)
+    assert point_coverage_data['ranges']['47']['values'] == [
+        229190326.35984764, 229190326.35984764, 229211702.2123422,
+        229211702.2123422, 229232035.34032482, 229331615.5312141
+    ]
