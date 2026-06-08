@@ -111,7 +111,7 @@
         <tr>
             <td>
               <details>
-                <summary><strong>{{ pg['label'] }}</strong> ({{ pg.members[data.id]|length }} matches)</summary>
+                <summary><strong>{{ pg['label'] }}</strong> ({{ pg.members[data.id]|length }} parameters{{ v|length > 1 ? 's' : '' }})</summary>
                 <table style="background: #FFF" class="table table-condensed mb-0">
                   <tr>
                     <th style="width: 120px;">id</th>
@@ -143,8 +143,8 @@
 
             {% endfor %}
         </table>
-
-      {% elif 'parameter_names' in data %}
+      {% endif %}
+      {% if 'parameter_names' in data %}
       <h3>Parameters</h3>
       <table class="table table-striped table-bordered">
         <tr>
