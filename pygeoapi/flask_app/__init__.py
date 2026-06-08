@@ -380,6 +380,7 @@ def get_collection_tiles_metadata(collection_id: str | None = None,
 
 @BLUEPRINT.route('/collections/<path:collection_id>/tiles/\
 <tileMatrixSetId>/<tileMatrix>/<tileRow>/<tileCol>')
+@FLASK_CACHE.cached_view()
 def get_collection_tiles_data(collection_id: str | None = None,
                               tileMatrixSetId: str | None = None,
                               tileMatrix: str | None = None,
