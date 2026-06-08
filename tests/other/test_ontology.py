@@ -29,13 +29,52 @@
 
 import pytest
 from rdflib import Graph, Namespace, Literal
-from rdflib.namespace import RDF, SKOS
+from rdflib.namespace import RDF, SKOS, RDFS
 
-from pygeoapi.ontology import get_mapping
+from pygeoapi.ontology import get_mapping, apply_mapping, apply_unit_conversion
 
 # Namespaces
 USBR = Namespace("http://lincolninst.edu/cgs/vocabularies/usbr#")
 VAR = Namespace("http://vocabulary.odm2.org/variablename/")
+QUDT = Namespace("http://qudt.org/schema/qudt/")
+UNIT = Namespace("http://qudt.org/vocab/unit/")
+
+
+@pytest.fixture
+def point_coverage_data():
+    return {
+        'type': 'Coverage',
+        'domain': {
+            'type': 'Domain',
+            'domainType': 'PointSeries',
+            'axes': {
+                'x': {'values': [-10.1]},
+                'y': {'values': [-40.2]},
+                't': {'values': [
+                    '2013-01-01', '2013-01-02', '2013-01-03',
+                    '2013-01-04', '2013-01-05', '2013-01-06']}
+            }
+        },
+        'parameters': {
+            '47': {
+                'type': 'Parameter',
+                'description': {'en': 'Reservoir Storage'},
+                'unit': {'symbol': 'ac-ft'},
+                'observedProperty': {
+                    'label': {'en': 'Reservor Storage'}
+                }
+            }
+        },
+        'ranges': {
+            '47': {
+                'axisNames': ['t'],
+                'shape': [6],
+                'values': [
+                    43.9599, 43.9599, 43.9640, 43.9640, 43.9679, 43.987
+                ]
+            }
+        }
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +92,8 @@ def ontology_file(tmp_path):
     g.bind("skos", SKOS)
     g.bind("", USBR)
     g.bind("variablename", VAR)
+    g.bind("qudt", QUDT)
+    g.bind("unit", UNIT)
 
     # Concept scheme
     scheme = USBR["conceptScheme_8257cf0e"]
@@ -85,6 +126,11 @@ def ontology_file(tmp_path):
     g.add((odmvar, RDF.type, SKOS.Concept))
     g.add((odmvar, SKOS.prefLabel, Literal("Storage", lang="en")))
     g.add((odmvar, SKOS.inScheme, scheme))
+    g.add((odmvar, QUDT.hasUnit, UNIT['AC-FT']))
+
+    # QUDT Unit
+    g.add((UNIT['AC-FT'], QUDT.symbol, Literal('acre·ft')))
+    g.add((UNIT['AC-FT'], RDFS.label, Literal("Acre Foot", lang="en")))
 
     g.serialize(destination=ttl_path, format="turtle")
     return ttl_path
@@ -166,3 +212,26 @@ def test_multiple_mappings():
     mapping = result['rise-edr']['3']
     assert mapping['Storage'] == \
         'http://lincolninst.edu/cgs/vocabularies/usbr#c_c678a27e'
+
+def test_apply_mapping(monkeypatch, ontology_file, point_coverage_data):
+    monkeypatch.setenv("PYGEOAPI_ONTOLOGY_GRAPH", str(ontology_file))
+
+    parameter_groups = {}
+    onto_mapping = get_mapping(['Storage', 'Inflow'])
+    parameters = point_coverage_data['parameters']
+    for parameter in parameters:
+        apply_mapping(
+            parameters=point_coverage_data['parameters'],
+            onto_mapping=onto_mapping,
+            parameter_groups=parameter_groups,
+            dataset='rise-edr',
+            parameter=parameter,
+            single_dataset=True
+        )
+
+    assert 'Storage' in parameter_groups
+    storage = parameter_groups['Storage']
+    assert storage['members'] == ['47']
+
+    assert parameters['47']['narrowerThan'] == ['Storage']
+    assert parameters['47']['unit']['definition'] == 'http://qudt.org/vocab/unit/AC-FT'
