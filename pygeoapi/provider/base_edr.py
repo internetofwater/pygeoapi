@@ -120,7 +120,7 @@ class BaseEDRProvider(BaseProvider):
         :returns: A dictionary or list containing the parameter definition.
         """
         if not parameters:
-            parameters = set(self.fields.keys())
+            parameters = set(self.get_fields().keys())
 
         out_params = {}
         for name in set(parameters):
